@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { afterAll, expect, test } from 'vitest';
 import { createAuth } from '../../../src/auth';
+import { authRequestUrl, verificationCallback } from '../../../src/auth/paths';
 import { CapturingEmailAdapter } from '../../../src/auth/email';
 import { getHumanPrincipal } from '../../../src/auth/principal';
 import { user, session } from '../../../src/db/schema/auth';
@@ -13,9 +14,9 @@ import { openDatabase, runtimeUrl } from '../helpers';
 const runtime = openDatabase(runtimeUrl());
 afterAll(() => runtime.pool.end());
 const email = new CapturingEmailAdapter();
-const env = loadEnv({ NODE_ENV: 'test', DATABASE_URL: runtimeUrl(), APP_BASE_URL: 'http://localhost:3000' });
+const env = loadEnv({ NODE_ENV: 'test', DATABASE_URL: runtimeUrl(), APP_BASE_URL: 'http://localhost:3000/' });
 const auth = createAuth(runtime.db, env, email);
-const post = (path: string, body: object, cookie?: string) => auth.handler(new Request(`http://localhost:3000/api/auth${path}`, {
+const post = (path: string, body: object, cookie?: string) => auth.handler(new Request(authRequestUrl(env.APP_BASE_URL, path), {
   method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:3000', ...(cookie ? { cookie } : {}) }, body: JSON.stringify(body),
 }));
 const cookieFrom = (response: Response) => (response.headers.get('set-cookie') ?? '').split(';')[0];
@@ -106,4 +107,20 @@ test('production cookies are secure, httpOnly and SameSite=Lax; untrusted origin
   expect(signed.status).toBe(200);
   const set = signed.headers.get('set-cookie')!;
   expect(set).toMatch(/HttpOnly/i); expect(set).toMatch(/Secure/i); expect(set).toMatch(/SameSite=Lax/i);
+});
+
+test('signup verification preserves an invited activation destination across the email round trip', async () => {
+  const next = `/activate/${'x'.repeat(43)}`;
+  const address = `invited-${newId()}@example.com`;
+  const signup = await post('/sign-up/email', { email: address, name: 'Invited user', password: 'correct-horse-battery',
+    callbackURL: verificationCallback(next) });
+  expect(signup.status).toBe(200);
+  const message = email.messages.findLast((m) => m.to === address)!;
+  const verified = await auth.handler(new Request(linkFrom(message.text)));
+  expect(verified.status).toBe(302);
+  const destination = new URL(verified.headers.get('location')!, env.APP_BASE_URL);
+  expect(destination.pathname).toBe('/verify-email');
+  expect(destination.searchParams.get('returnTo')).toBe(next);
+  const signin = await post('/sign-in/email', { email: address, password: 'correct-horse-battery' });
+  expect(signin.status).toBe(200);
 });

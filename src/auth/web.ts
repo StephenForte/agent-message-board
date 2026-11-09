@@ -2,7 +2,8 @@ import { cookies, headers } from 'next/headers';
 import { parseSetCookieHeader, toCookieOptions } from 'better-auth/cookies';
 import { getAuth } from './index';
 import { loadEnv } from '../env';
-import { AUTH_BASE_PATH } from './paths';
+import { authRequestUrl } from './paths';
+export { safeActivationReturn } from './paths';
 import { notFound, redirect } from 'next/navigation';
 import { getHumanPrincipal } from './principal';
 import { listOrganizationsForAdmin } from '../domain/organizations';
@@ -23,9 +24,6 @@ export async function requireAdmin() {
   if (!principal) notFound();
   return principal;
 }
-export function safeActivationReturn(value: unknown): string | null {
-  return typeof value === 'string' && /^\/activate\/[A-Za-z0-9_-]{43}$/.test(value) ? value : null;
-}
 
 export class AuthActionError extends Error {
   constructor(readonly code: string) { super('Authentication request failed'); }
@@ -36,7 +34,7 @@ export async function performAuth(path: string, body: Record<string, unknown>) {
   const forwarded = new Headers(incoming);
   forwarded.set('content-type', 'application/json');
   forwarded.delete('content-length');
-  const response = await getAuth().handler(new Request(`${loadEnv().APP_BASE_URL}${AUTH_BASE_PATH}${path}`, {
+  const response = await getAuth().handler(new Request(authRequestUrl(loadEnv().APP_BASE_URL, path), {
     method: 'POST', headers: forwarded, body: JSON.stringify(body),
   }));
   const cookieStore = await cookies();

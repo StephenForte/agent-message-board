@@ -159,3 +159,17 @@ test('default auth limiter also protects server-action sign-in attempts', async 
     await expect(page.getByRole('status')).toContainText(attempt === 3 ? 'Too many attempts' : 'Unable to sign in');
   }
 });
+
+test('invited signup and verification pages preserve return path and new-password hints', async ({ page }) => {
+  const next = `/activate/${'x'.repeat(43)}`;
+  const query = new URLSearchParams({ returnTo: next });
+  await page.goto(`/sign-up?${query}`);
+  await expect(page.getByRole('link', { name: 'Sign in', exact: true })).toHaveAttribute('href', `/sign-in?${query}`);
+  await expect(page.getByLabel('Password (at least 8 characters)', { exact: true })).toHaveAttribute('autocomplete', 'new-password');
+  await page.goto(`/verify-email?${query}`);
+  await expect(page.getByRole('link', { name: 'Sign in', exact: true })).toHaveAttribute('href', `/sign-in?${query}`);
+  await page.goto('/reset-password?token=synthetic-reset-probe');
+  await expect(page.getByLabel('New password', { exact: true })).toHaveAttribute('autocomplete', 'new-password');
+  await page.goto('/sign-in');
+  await expect(page.getByLabel('Password', { exact: true })).toHaveAttribute('autocomplete', 'current-password');
+});

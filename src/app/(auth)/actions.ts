@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { requireHuman, safeActivationReturn, performAuth, AuthActionError } from '../../auth/web';
 import { consumeOwnerActivation, humanLanding } from '../../domain/organizations';
 import { DomainError } from '../../domain/kernel';
+import { verificationCallback } from '../../auth/paths';
 
 const text = (data: FormData, key: string) => String(data.get(key) ?? '');
 const back = (data: FormData) => safeActivationReturn(data.get('returnTo'));
@@ -28,7 +29,7 @@ export async function signUp(data: FormData) {
   try {
     await performAuth('/sign-up/email', {
       name: text(data, 'name'), email: text(data, 'email'), password: text(data, 'password'),
-      callbackURL: '/verify-email',
+      callbackURL: verificationCallback(back(data)),
     });
   } catch { failure('/sign-up', 'sign-up-failed', back(data)); }
   failure('/verify-email', 'verification-sent', back(data));

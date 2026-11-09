@@ -69,7 +69,7 @@ export default defineConfig({
       __NEXT_PRIVATE_ORIGIN: 'http://127.0.0.1:3100',
       DATABASE_URL: databaseUrl.toString(),
       BETTER_AUTH_SECRET: 'b'.repeat(48), CURSOR_HMAC_SECRET: 'c'.repeat(48),
-      APP_BASE_URL: 'https://localhost:3101', LOG_LEVEL: 'info',
+      APP_BASE_URL: 'https://localhost:3101/', LOG_LEVEL: 'info',
       RESEND_API_KEY: 're_e2e_fixture', EMAIL_FROM: 'Board <board@example.test>',
     },
   }, { command: httpsProxyCommand, url: 'https://localhost:3101/api/health', ignoreHTTPSErrors: true, reuseExistingServer: false }],

@@ -1,10 +1,10 @@
-export function Field({ name, label, type = 'text', value }: {
-  name: string; label: string; type?: string; value?: string;
+export function Field({ name, label, type = 'text', value, autoComplete }: {
+  name: string; label: string; type?: string; value?: string; autoComplete?: React.ComponentProps<'input'>['autoComplete'];
 }) {
   return <label className="block space-y-1">{label}<input className="block w-full rounded border p-2"
     name={name} type={type} defaultValue={value} required maxLength={type === 'password' ? 128 : 320}
     minLength={type === 'password' ? 8 : undefined}
-    autoComplete={type === 'password' ? 'current-password' : name === 'email' ? 'email' : name} /></label>;
+    autoComplete={autoComplete ?? (type === 'password' ? 'current-password' : name === 'email' ? 'email' : name)} /></label>;
 }
 export const buttonClass = 'rounded bg-blue-700 px-4 py-2 font-medium text-white disabled:opacity-50';
 const messages: Record<string, string> = {
