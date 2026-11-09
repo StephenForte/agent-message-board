@@ -70,7 +70,7 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 | T04 | Projects + credentials domain (tokens, agents, sessions, defaults) | 2 | T02 | strong | merged — PR #5 (8c8bc69) |
 | T05 | Messages domain (threads, flags, lifecycle, search) | 2 | T02 | strong | merged — PR #6 (dc21886) |
 | T06 | Announcements domain | 2 | T02 | mid | merged — PR #8 (ada7557) |
-| T13 | Render staging deploy, render.yaml, ops docs | 2 | T01 | mid | approved — PR #7 (e853044), awaiting merge; Render apply is an operator decision |
+| T13 | Render staging deploy, render.yaml, ops docs | 2 | T01 | mid | merged — PR #7 (6ccd287); Render not yet applied (operator decision) |
 | T07 | Briefing/check_board engine + cursors | 3 | T04,T05,T06 | strong | planned |
 | T08 | Web shell: org home, projects, settings, announcement editors, audit view | 3 | T03,T04,T06 | mid | planned |
 | T09 | Web board: board, thread, composer, templates, search/filters, flags | 3 | T03,T05 | mid | planned |
