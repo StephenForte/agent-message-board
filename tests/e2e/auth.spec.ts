@@ -136,7 +136,7 @@ test('real production stdout redacts activation and password-reset credentials',
     expect(ready).toBe(true);
     const activation = randomBytes(32).toString('base64url');
     const reset = randomBytes(24).toString('base64url');
-    for (const path of [`/activate/${activation}`, `/api/auth/reset-password/${reset}?callbackURL=/reset-password`]) {
+    for (const path of [`/activate/${activation}`, `//activate/${activation}`, `/api/auth/reset-password/${reset}?callbackURL=/reset-password`]) {
       const response = await fetch(`http://127.0.0.1:3193${path}`, { redirect: 'manual' }); await response.text();
     }
     await expect.poll(() => output.includes('/api/auth/reset-password/[redacted]')).toBe(true);

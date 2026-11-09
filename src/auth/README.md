@@ -25,7 +25,7 @@ Already-owned organizations cannot be claimed using an old link.
 
 Credential-bearing path prefixes live in `src/auth/paths.ts`. Add every future secret path
 there before introducing its route. `redactRoute` drops queries/fragments, decodes once to
-recognize encoded prefixes, and replaces the entire suffix after a credential prefix with
+recognize encoded prefixes, normalizes duplicate slashes/dot segments for matching, and replaces the entire suffix after a credential prefix with
 `[redacted]`. Malformed encoding is fully redacted. Finish and failure logs share that value.
 Activation and password-reset credentials must never appear in audit metadata or ordinary logs.
 Admin activation URLs exist only in the current action result; no persistence or redisplay API.

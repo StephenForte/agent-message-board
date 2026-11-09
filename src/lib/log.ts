@@ -35,7 +35,11 @@ export function createLogger(level: keyof typeof levels = 'info', write: (line: 
 export function redactRoute(rawUrl: string): string {
   const raw = rawUrl.split(/[?#]/, 1)[0] ?? '/';
   let path: string;
-  try { path = decodeURIComponent(raw); } catch { return '/[redacted]'; }
+  try {
+    const decoded = decodeURIComponent(raw);
+    // Next canonicalizes duplicate slashes and dot segments; redact before its redirect too.
+    path = new URL(decoded.replace(/^\/+/g, '/'), 'https://route.invalid').pathname.replace(/\/+/g, '/');
+  } catch { return '/[redacted]'; }
   const prefix = credentialPathPrefixes.find((candidate) => path.toLowerCase().startsWith(candidate.toLowerCase()));
   return prefix ? `${prefix}[redacted]` : raw;
 }

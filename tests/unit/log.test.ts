@@ -38,6 +38,9 @@ test('credential path segments are redacted while ordinary paths retain their na
   expect(redactRoute('/activate/private-credential?next=secret')).toBe('/activate/[redacted]');
   expect(redactRoute('/api/auth/reset-password/private-credential')).toBe('/api/auth/reset-password/[redacted]');
   expect(redactRoute('/%61ctivate/private-credential/extra')).toBe('/activate/[redacted]');
+  expect(redactRoute('//activate/private-credential')).toBe('/activate/[redacted]');
+  expect(redactRoute('/ignored/../activate/private-credential')).toBe('/activate/[redacted]');
+  expect(redactRoute('https://example.com/api/auth/reset-password/private-credential')).toBe('/api/auth/reset-password/[redacted]');
   expect(redactRoute('/api/health?private=secret')).toBe('/api/health');
   expect(redactRoute('/projects/alpha')).toBe('/projects/alpha');
   expect(redactRoute('/activate/%bad')).toBe('/[redacted]');

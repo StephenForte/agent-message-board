@@ -16,7 +16,7 @@ export async function mutateOrganization(_state: AdminResult, data: FormData): P
         const issued = await issueOwnerActivation(principal, value('id'), value('email'));
         revalidatePath('/admin');
         return { message: 'Copy this activation link now. It expires in 72 hours and will not be displayed again.',
-          activationUrl: `${loadEnv().APP_BASE_URL}/activate/${issued.token}` };
+          activationUrl: new URL(`/activate/${issued.token}`, loadEnv().APP_BASE_URL).toString() };
       }
       case 'suspend': await suspendOrganization(principal, value('id')); break;
       case 'restore': await restoreOrganization(principal, value('id')); break;
