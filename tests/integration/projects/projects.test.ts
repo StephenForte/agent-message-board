@@ -110,3 +110,10 @@ test('cross-org reads and mutations fail without disclosing projects; invalid UU
   const runtimeRows = await withOrgTx(f.owner, (tx) => tx.execute(sql`select rolsuper, rolbypassrls from pg_roles where rolname = current_user`));
   expect(runtimeRows.rows[0]).toMatchObject({ rolsuper: false, rolbypassrls: false });
 });
+
+test('creation rejects missing or coerced slugs before reaching database constraints', async () => {
+  const f = await fixture();
+  for (const slug of [undefined, null, 123, '', 'UPPERCASE', 'with spaces', 'a'.repeat(64)]) {
+    await expect(p.createProject(f.owner, { name: 'Valid', slug: slug as string, idempotencyKey: newId() })).rejects.toMatchObject({ code: 'validation_failed', details: { field: 'slug' } });
+  }
+});

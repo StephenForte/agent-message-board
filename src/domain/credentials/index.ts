@@ -172,7 +172,7 @@ export async function getAgentDefaultsInTx(tx: DbTx, ctx: TxContext, agentId: st
 export function getAgentDefaults(principal: Principal, agentId: string) { return withOrgTx(principal, (tx, ctx) => getAgentDefaultsInTx(tx, ctx, agentId)); }
 export function connectAgent(principal: AgentPrincipal, input: { name: string; clientLabel?: string }) {
   agentOnly(principal);
-  if (!/^[A-Za-z0-9._-]{1,64}$/.test(input.name)) throw new DomainError('validation_failed', { field: 'name' });
+  if (typeof input.name !== 'string' || !/^[A-Za-z0-9._-]{1,64}$/.test(input.name)) throw new DomainError('validation_failed', { field: 'name' });
   if (input.clientLabel !== undefined) textField(input.clientLabel, 'clientLabel', 200);
   return withOrgTx(principal, async (tx, ctx) => {
     await tx.insert(agents).values({ id: newId(), orgId: ctx.orgId, name: input.name }).onConflictDoNothing();

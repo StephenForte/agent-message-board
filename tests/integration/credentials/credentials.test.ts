@@ -170,3 +170,10 @@ test('org suspension and expiry invalidate existing sessions on the next call', 
   await admin.db.update(schema.agentTokens).set({ expiresAt: new Date(Date.now() - 1000) }).where(and(eq(schema.agentTokens.id, f.issued.token.id), eq(schema.agentTokens.orgId, f.orgId)));
   await expect(c.resolveAgentSession(f.principal, f.connected.sessionId)).rejects.toMatchObject({ code: 'unauthenticated' });
 });
+
+test('agent registration rejects missing or coerced names with a domain validation error', async () => {
+  const f = await connection();
+  for (const name of [undefined, null, 123, '', 'with spaces', 'a'.repeat(65)]) {
+    await expect(Promise.resolve().then(() => c.connectAgent(f.principal, { name: name as string }))).rejects.toMatchObject({ code: 'validation_failed', details: { field: 'name' } });
+  }
+});

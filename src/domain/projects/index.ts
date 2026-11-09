@@ -40,7 +40,7 @@ export function createProject(principal: Principal, input: CreateProjectInput) {
     if (!ctx.canCreateProjects) throw new DomainError('capability_denied');
     if (principal.kind === 'agent' && (!principal.agentId || !principal.sessionId)) throw new DomainError('unauthenticated');
     textField(input.name, 'name', 200);
-    if (!/^[a-z0-9][a-z0-9-]{0,62}$/.test(input.slug)) throw new DomainError('validation_failed', { field: 'slug' });
+    if (typeof input.slug !== 'string' || !/^[a-z0-9][a-z0-9-]{0,62}$/.test(input.slug)) throw new DomainError('validation_failed', { field: 'slug' });
     descriptionField(input.description);
     return withIdempotency(tx, ctx, 'project.create', input.idempotencyKey, {
       name: input.name, slug: input.slug, description: input.description ?? null,
