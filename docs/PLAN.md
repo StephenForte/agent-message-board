@@ -69,7 +69,7 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 | T03 | Human auth, site admin, org provisioning/suspension | 2 | T02 | strong | merged — PR #9 (fc12b2d) |
 | T04 | Projects + credentials domain (tokens, agents, sessions, defaults) | 2 | T02 | strong | merged — PR #5 (8c8bc69) |
 | T05 | Messages domain (threads, flags, lifecycle, search) | 2 | T02 | strong | merged — PR #6 (dc21886) |
-| T06 | Announcements domain | 2 | T02 | mid | approved — PR #8 (fcea6bb), awaiting merge |
+| T06 | Announcements domain | 2 | T02 | mid | merged — PR #8 (ada7557) |
 | T13 | Render staging deploy, render.yaml, ops docs | 2 | T01 | mid | brief ready — docs/briefs/T13.md |
 | T07 | Briefing/check_board engine + cursors | 3 | T04,T05,T06 | strong | planned |
 | T08 | Web shell: org home, projects, settings, announcement editors, audit view | 3 | T03,T04,T06 | mid | planned |
