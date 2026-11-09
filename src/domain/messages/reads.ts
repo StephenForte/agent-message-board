@@ -108,9 +108,9 @@ export function getThreadHistory(principal: Principal, rootId: string) {
   return withOrgTx(principal, (tx, ctx) => getThreadHistoryInTx(tx, ctx, rootId));
 }
 export async function getThreadHistoryInTx(tx: DbTx, ctx: TxContext, rootId: string) {
-  await rootRow(tx, ctx, rootId, 'read');
+  const { row: root } = await rootRow(tx, ctx, rootId, 'read');
   const rows = await tx.select().from(auditRecords).where(and(
-    eq(auditRecords.orgId, ctx.orgId), eq(auditRecords.entityType, 'message'), eq(auditRecords.entityId, rootId), eq(auditRecords.action, 'message.updated'),
+    eq(auditRecords.orgId, ctx.orgId), eq(auditRecords.entityType, 'message'), eq(auditRecords.entityId, root.id), eq(auditRecords.action, 'message.updated'),
   )).orderBy(asc(auditRecords.createdAt), asc(auditRecords.id));
   return rows.map((row) => ({ ...row, createdAt: row.createdAt.toISOString() }));
 }
