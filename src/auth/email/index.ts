@@ -1,3 +1,5 @@
+import { safeActivationReturn } from '../paths';
+
 export type Email = { to: string; subject: string; text: string };
 export interface EmailAdapter { send(email: Email): Promise<void> }
 
@@ -9,7 +11,7 @@ export class CapturingEmailAdapter implements EmailAdapter {
 export class ConsoleEmailAdapter implements EmailAdapter {
   async send(email: Email) {
     if (process.env.NODE_ENV === 'production') throw new Error('Console email is disabled in production');
-    console.info('[development email]', email);
+    console.info('[development email]', { ...email, text: consoleEmailText(email.text) });
   }
 }
 
@@ -28,4 +30,23 @@ export class ResendEmailAdapter implements EmailAdapter {
       throw new Error('Email delivery unavailable');
     }
   }
+}
+
+/** Keep development verification links usable without logging an activation bearer credential. */
+function consoleEmailText(text: string): string {
+  return text.replace(/https?:\/\/\S+/g, (value) => {
+    try {
+      const url = new URL(value);
+      if (url.pathname.startsWith('/activate/')) return `${url.origin}/activate/[redacted]`;
+      const callback = url.searchParams.get('callbackURL');
+      if (callback) {
+        const destination = new URL(callback, url.origin);
+        if (safeActivationReturn(destination.searchParams.get('returnTo'))) {
+          destination.searchParams.delete('returnTo');
+          url.searchParams.set('callbackURL', `${destination.pathname}${destination.search}`);
+        }
+      }
+      return url.toString();
+    } catch { return '[redacted link]'; }
+  });
 }

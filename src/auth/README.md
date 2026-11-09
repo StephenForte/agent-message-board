@@ -29,3 +29,8 @@ recognize encoded prefixes, normalizes duplicate slashes/dot segments for matchi
 `[redacted]`. Malformed encoding is fully redacted. Finish and failure logs share that value.
 Activation and password-reset credentials must never appear in audit metadata or ordinary logs.
 Admin activation URLs exist only in the current action result; no persistence or redisplay API.
+
+Development console delivery omits an activation return path from its logged verification URL
+to keep the activation credential out of logs. The verification link remains usable; continue
+in the original signup tab, whose Sign in link retains the activation destination. Resend and
+capturing delivery retain the complete callback for the normal email round trip.
