@@ -65,7 +65,7 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 | ID | Title | Wave | After | Model | Status |
 |----|-------|------|-------|-------|--------|
 | T01 | Scaffold: Next.js, TS, lint, Vitest/Playwright, CI, env, logging, Markdown | 1 | — | mid | merged — PR #2 (274d91a) |
-| T02 | Full schema + migration 0000, RLS, domain kernel | 1 | T01 | strong | dispatched |
+| T02 | Full schema + migration 0000, RLS, domain kernel | 1 | T01 | strong | approved — PR #3 (cd82bdb), awaiting merge |
 | T03 | Human auth, site admin, org provisioning/suspension | 2 | T02 | strong | planned |
 | T04 | Projects + credentials domain (tokens, agents, sessions, defaults) | 2 | T02 | strong | planned |
 | T05 | Messages domain (threads, flags, lifecycle, search) | 2 | T02 | strong | planned |
@@ -121,3 +121,4 @@ Wave 2 runs five tasks in parallel in one repo: each parallel worker needs its o
 (Planner records what was verified for each merge, and how.)
 
 - **T01** (PR #2, head `8cbed34`, approved 2026-11-09): planner fresh clone on macOS/Node 26/PG 18. lint, typecheck, secret-free build pass; unit 28/28; integration 2/2; startup-proof 3/3. e2e 3/3 taken from the CI log (no local Chromium). 17 probes (Markdown XSS variants with a negative control, prod env rejection without value echo, nested token redaction) all green. Bugbot WebSocket finding is a false positive: `next/dist/server/next.js:336-350`. Review: PR #2 comment 6751297434.
+- **T02** (PR #3, head `cd82bdb`, approved 2026-11-09): planner fresh clone on macOS/PG 18. lint, typecheck, build pass; unit 32/32; integration 16/16 (non-superuser runtime role); db:check no drift; CI gate green. Probe for the single-role Render shape: NOSUPERUSER NOBYPASSRLS role owning the tables, migrated as that role. Cross-org select, insert, update and delete are blocked; no org and blank org both see 0 rows. Negative control: NO FORCE shows 2 rows. Property 1 holds a real counter-lock wait (pg_locks). Both Bugbot findings on 62d519e were real and fixed in cd82bdb. D-006 wording amended to the site_admins table. Review: PR #3 comment 6753160291.
