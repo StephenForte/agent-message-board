@@ -1,0 +1,113 @@
+# Agent Message Board — staging and production (D-004).
+# Apply this file as a Render Blueprint. It does not create resources by itself.
+# No secret values belong in this file. Operator steps: docs/ops/deploy.md.
+#
+# Plans are the cheapest that meet the launch constraints:
+# - Web 0.5c-512mb ($7/month): pre-deploy is paid-only.
+#   https://render.com/docs/deploys#pre-deploy-command
+#   https://render.com/pricing
+# - Postgres 0.1c-256mb ($6/month) plus the 15 GB disk this plan defaults to:
+#   free Postgres has no point-in-time recovery.
+#   https://render.com/docs/postgresql-backups
+#   https://render.com/docs/blueprint-spec
+#   https://render.com/pricing
+
+projects:
+  - name: agent-message-board
+    environments:
+      - name: staging
+        services:
+          - type: web
+            name: amb-staging-web
+            runtime: node
+            region: oregon
+            plan: 0.5c-512mb
+            # NODE_ENV=production is set below, and service env vars are present
+            # during the build. Plain `npm ci` would skip devDependencies, and
+            # both `next build` and `npm run db:migrate` need them.
+            buildCommand: npm ci --include=dev && npm run build
+            preDeployCommand: npm run db:migrate
+            startCommand: npm start
+            healthCheckPath: /api/health
+            # Deploy a main commit only after GitHub checks on that commit pass.
+            # .github/workflows/ci.yml runs on push.
+            autoDeployTrigger: checksPass
+            envVars:
+              # Same major as .nvmrc. Precedence: NODE_VERSION over .nvmrc.
+              # https://render.com/docs/node-version
+              - key: NODE_VERSION
+                value: "22"
+              - key: NODE_ENV
+                value: production
+              - key: LOG_LEVEL
+                value: info
+              # Private-network URL. Same region as this service (oregon).
+              # https://render.com/docs/blueprint-spec
+              - key: DATABASE_URL
+                fromDatabase:
+                  name: amb-staging-db
+                  property: connectionString
+              # Base64 256-bit value, 44 characters. src/env.ts requires 32.
+              # https://render.com/docs/blueprint-spec
+              - key: BETTER_AUTH_SECRET
+                generateValue: true
+              - key: CURSOR_HMAC_SECRET
+                generateValue: true
+              - key: APP_BASE_URL
+                sync: false
+              - key: RESEND_API_KEY
+                sync: false
+              - key: EMAIL_FROM
+                sync: false
+        databases:
+          - name: amb-staging-db
+            region: oregon
+            plan: 0.1c-256mb
+            # Quoted string. Omitting this field selects the platform default,
+            # which is currently 18. Immutable after create.
+            # https://render.com/docs/blueprint-spec
+            postgresMajorVersion: "16"
+            # Default disk for this plan. Storage is $0.30/GB.
+            # https://render.com/docs/blueprint-spec
+            # https://render.com/pricing
+            diskSizeGB: 15
+
+      - name: prod
+        services:
+          - type: web
+            name: amb-prod-web
+            runtime: node
+            region: oregon
+            plan: 0.5c-512mb
+            buildCommand: npm ci --include=dev && npm run build
+            preDeployCommand: npm run db:migrate
+            startCommand: npm start
+            healthCheckPath: /api/health
+            autoDeployTrigger: checksPass
+            envVars:
+              - key: NODE_VERSION
+                value: "22"
+              - key: NODE_ENV
+                value: production
+              - key: LOG_LEVEL
+                value: info
+              - key: DATABASE_URL
+                fromDatabase:
+                  name: amb-prod-db
+                  property: connectionString
+              - key: BETTER_AUTH_SECRET
+                generateValue: true
+              - key: CURSOR_HMAC_SECRET
+                generateValue: true
+              - key: APP_BASE_URL
+                sync: false
+              - key: RESEND_API_KEY
+                sync: false
+              - key: EMAIL_FROM
+                sync: false
+        databases:
+          - name: amb-prod-db
+            region: oregon
+            plan: 0.1c-256mb
+            postgresMajorVersion: "16"
+            diskSizeGB: 15
