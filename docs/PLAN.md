@@ -64,7 +64,7 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 
 | ID | Title | Wave | After | Model | Status |
 |----|-------|------|-------|-------|--------|
-| T01 | Scaffold: Next.js, TS, lint, Vitest/Playwright, CI, env, logging, Markdown | 1 | — | mid | planned |
+| T01 | Scaffold: Next.js, TS, lint, Vitest/Playwright, CI, env, logging, Markdown | 1 | — | mid | dispatched |
 | T02 | Full schema + migration 0000, RLS, domain kernel | 1 | T01 | strong | planned |
 | T03 | Human auth, site admin, org provisioning/suspension | 2 | T02 | strong | planned |
 | T04 | Projects + credentials domain (tokens, agents, sessions, defaults) | 2 | T02 | strong | planned |
