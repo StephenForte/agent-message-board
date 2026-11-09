@@ -16,11 +16,41 @@ assert.notEqual(integration.status, 0);
 assert.match(integration.stdout + integration.stderr, /TEST_DATABASE_URL is required/);
 console.log('PASS: integration fails explicitly without TEST_DATABASE_URL');
 
-// Exercise the real production HTTP boundary, including the final 404 status.
 const { spawn } = await import('node:child_process');
 const { setTimeout: delay } = await import('node:timers/promises');
+const { randomUUID } = await import('node:crypto');
+const { Client } = await import('pg');
+
+const unreachableUrl = 'postgresql://amb_invalid:amb_invalid@127.0.0.1:59999/amb_unreachable';
+const refused = spawnSync(process.execPath, ['--import', 'tsx', 'src/lib/server.ts'], {
+  env: { ...env, PORT: '3192', DATABASE_URL: unreachableUrl,
+    BETTER_AUTH_SECRET: 'a'.repeat(48), CURSOR_HMAC_SECRET: 'b'.repeat(48),
+    APP_BASE_URL: 'https://example.test', LOG_LEVEL: 'info' },
+  encoding: 'utf8', timeout: 20_000,
+});
+assert.equal(refused.error, undefined);
+assert.notEqual(refused.status, 0);
+const refusedOutput = refused.stdout + refused.stderr;
+assert.match(refusedOutput, /Database is unreachable/);
+for (const hidden of ['amb_invalid', 'amb_unreachable', '59999']) assert.ok(!refusedOutput.includes(hidden), hidden);
+console.log('PASS: production startup refuses an unreachable database without echoing the URL');
+
+const adminUrl = process.env.TEST_DATABASE_URL;
+if (!adminUrl) {
+  console.error('TEST_DATABASE_URL is required to prove startup against a real database');
+  process.exit(1);
+}
+const proofName = `amb_proof_${randomUUID().replaceAll('-', '')}`;
+const admin = new Client({ connectionString: adminUrl });
+await admin.connect();
+await admin.query(`CREATE DATABASE "${proofName}"`);
+await admin.end();
+const proofUrl = new URL(adminUrl);
+proofUrl.pathname = `/${proofName}`;
+
+// Exercise the real production HTTP boundary, including the final 404 status.
 const server = spawn(process.execPath, ['--import', 'tsx', 'src/lib/server.ts'], {
-  env: { ...env, PORT: '3191', DATABASE_URL: 'postgresql://localhost/unused',
+  env: { ...env, PORT: '3191', DATABASE_URL: proofUrl.toString(),
     BETTER_AUTH_SECRET: 'a'.repeat(48), CURSOR_HMAC_SECRET: 'b'.repeat(48),
     APP_BASE_URL: 'https://example.test', LOG_LEVEL: 'info' },
   stdio: ['ignore', 'pipe', 'pipe'],
@@ -57,4 +87,8 @@ try {
 } finally {
   server.kill('SIGTERM');
   await Promise.race([exited, delay(5_000).then(() => { server.kill('SIGKILL'); })]);
+  const drop = new Client({ connectionString: adminUrl });
+  await drop.connect();
+  await drop.query(`DROP DATABASE IF EXISTS "${proofName}" WITH (FORCE)`);
+  await drop.end();
 }

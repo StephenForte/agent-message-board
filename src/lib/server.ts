@@ -1,6 +1,8 @@
 import { createServer } from 'node:http';
 import next from 'next';
 import { loadEnv } from '../env';
+import { checkDatabase } from '../domain/kernel/health';
+import { closeDb } from '../db/client';
 import { createLogger, requestId } from './log';
 
 async function main() {
@@ -10,6 +12,10 @@ async function main() {
   const { loadEnvConfig } = await import('@next/env');
   loadEnvConfig(process.cwd(), dev);
   const env = loadEnv({ ...process.env, NODE_ENV: dev ? 'development' : 'production' });
+  if (!(await checkDatabase())) {
+    console.error('Database is unreachable');
+    process.exit(1);
+  }
   const log = createLogger(env.LOG_LEVEL);
   const port = Number(process.env.PORT ?? 3000);
   const app = next({ dev, hostname: process.env.HOSTNAME ?? '0.0.0.0', port });
@@ -35,7 +41,7 @@ async function main() {
   server.listen(port, '0.0.0.0');
   for (const signal of ['SIGTERM', 'SIGINT'] as const) {
     process.once(signal, () => {
-      server.close(() => { void app.close().finally(() => process.exit(0)); });
+      server.close(() => { void app.close().finally(() => { void closeDb().finally(() => process.exit(0)); }); });
     });
   }
 }
