@@ -11,9 +11,14 @@ const schema = z.object({
   BETTER_AUTH_SECRET: z.string().min(32),
   CURSOR_HMAC_SECRET: z.string().min(32),
   APP_BASE_URL: z.url().refine((value) => /^https?:\/\//.test(value)),
+  RESEND_API_KEY: z.string().min(1).optional(),
+  EMAIL_FROM: z.string().min(1).optional(),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error', 'silent']),
 }).superRefine((env, context) => {
   if (env.NODE_ENV !== 'production') return;
+  for (const key of ['RESEND_API_KEY', 'EMAIL_FROM'] as const) {
+    if (!env[key]?.trim()) context.addIssue({ code: 'custom', path: [key], message: 'Required' });
+  }
   for (const key of ['BETTER_AUTH_SECRET', 'CURSOR_HMAC_SECRET'] as const) {
     if (/dev|example|change.?me|placeholder/i.test(env[key])) {
       context.addIssue({ code: 'custom', path: [key], message: 'Production secret required' });
