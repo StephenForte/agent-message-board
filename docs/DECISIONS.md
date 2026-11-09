@@ -161,3 +161,13 @@ Package manager **npm** (no pnpm/corepack on the operator's machine).
 All "Proposed default" rows in PRD §2 and the v0.2 refinements (message categories, composer
 templates, deterministic briefings, launch criteria 14–17) are adopted for Phase 1 as written.
 Changing one needs a superseding entry.
+
+## D-019 — Runtime entry point is a custom Node server (2026-11-09, from T01 / PR #2)
+
+`npm start` / `npm run dev` run `src/lib/server.ts` (via `tsx`), which validates config
+(`src/env.ts`) before `next.prepare()`/`listen()` and logs final status + latency per request.
+Deploy with `npm start` only — never bare `next start` or `output: 'standalone'`, which would
+skip startup validation and completion logging (PRD §13, §14). `src/proxy.ts` propagates
+`x-request-id`. Consequence for UI tasks: the D-011 lint block also bans dynamic `import()`
+under `src/app/**`, so `next/dynamic(() => import(...))` is not available there; ask the
+planner before relaxing it.
