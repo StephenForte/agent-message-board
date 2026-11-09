@@ -48,9 +48,11 @@ FK on the organization so multiple owned orgs can follow without a data migratio
 
 ## D-006 — Site admin role (2026-11-09)
 
-A boolean/role on the user record, granted only by a CLI script
+A row in the `site_admins` table (user_id PK → user), granted only by a CLI script
 (`npm run admin:grant -- <email>`), never through the UI or any agent tool. Site admin does
 not imply read access to board content (PRD §4); admin pages read organization metadata only.
+Amended after T02: it is a separate table, not a column or Better Auth field on the user
+record; no task adds one.
 
 ## D-007 — Tenant isolation (2026-11-09)
 
