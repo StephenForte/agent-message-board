@@ -64,13 +64,13 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 
 | ID | Title | Wave | After | Model | Status |
 |----|-------|------|-------|-------|--------|
-| T01 | Scaffold: Next.js, TS, lint, Vitest/Playwright, CI, env, logging, Markdown | 1 | — | mid | planned |
-| T02 | Full schema + migration 0000, RLS, domain kernel | 1 | T01 | strong | planned |
-| T03 | Human auth, site admin, org provisioning/suspension | 2 | T02 | strong | planned |
-| T04 | Projects + credentials domain (tokens, agents, sessions, defaults) | 2 | T02 | strong | planned |
-| T05 | Messages domain (threads, flags, lifecycle, search) | 2 | T02 | strong | planned |
-| T06 | Announcements domain | 2 | T02 | mid | planned |
-| T13 | Render staging deploy, render.yaml, ops docs | 2 | T01 | mid | planned |
+| T01 | Scaffold: Next.js, TS, lint, Vitest/Playwright, CI, env, logging, Markdown | 1 | — | mid | merged — PR #2 (274d91a) |
+| T02 | Full schema + migration 0000, RLS, domain kernel | 1 | T01 | strong | merged — PR #3 (0fc8997) |
+| T03 | Human auth, site admin, org provisioning/suspension | 2 | T02 | strong | brief ready — docs/briefs/T03.md |
+| T04 | Projects + credentials domain (tokens, agents, sessions, defaults) | 2 | T02 | strong | brief ready — docs/briefs/T04.md |
+| T05 | Messages domain (threads, flags, lifecycle, search) | 2 | T02 | strong | brief ready — docs/briefs/T05.md |
+| T06 | Announcements domain | 2 | T02 | mid | brief ready — docs/briefs/T06.md |
+| T13 | Render staging deploy, render.yaml, ops docs | 2 | T01 | mid | brief ready — docs/briefs/T13.md |
 | T07 | Briefing/check_board engine + cursors | 3 | T04,T05,T06 | strong | planned |
 | T08 | Web shell: org home, projects, settings, announcement editors, audit view | 3 | T03,T04,T06 | mid | planned |
 | T09 | Web board: board, thread, composer, templates, search/filters, flags | 3 | T03,T05 | mid | planned |
@@ -82,7 +82,10 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 | T16 | Four-client release gate + two-agent cross-machine pilot (operator-run) | 6 | T12,T15 | operator | planned |
 
 Wave 2 runs five tasks in parallel in one repo: each parallel worker needs its own clone
-(the brief names it and its teardown). Wave 1 is serial and runs in the main checkout.
+(the brief names it and its teardown). Wave 2 clones: `/Users/stephenforte/amb-T03`, `amb-T04`, `amb-T05`,
+`amb-T06`, `amb-T13`, each deleted at hand-back. No migration number is assigned in wave 2
+(D-002); a worker that needs one stops and reports. Wave-2 dispatch needs docs PR #1 merged
+first, so D-019–D-024 and the briefs are on `main`. Wave 1 is serial and runs in the main checkout.
 
 ### Task notes
 
@@ -119,3 +122,6 @@ Wave 2 runs five tasks in parallel in one repo: each parallel worker needs its o
 ## Verification log
 
 (Planner records what was verified for each merge, and how.)
+
+- **T01** (PR #2, head `8cbed34`, approved 2026-11-09): planner fresh clone on macOS/Node 26/PG 18. lint, typecheck, secret-free build pass; unit 28/28; integration 2/2; startup-proof 3/3. e2e 3/3 taken from the CI log (no local Chromium). 17 probes (Markdown XSS variants with a negative control, prod env rejection without value echo, nested token redaction) all green. Bugbot WebSocket finding is a false positive: `next/dist/server/next.js:336-350`. Review: PR #2 comment 6751297434.
+- **T02** (PR #3, head `cd82bdb`, approved 2026-11-09): planner fresh clone on macOS/PG 18. lint, typecheck, build pass; unit 32/32; integration 16/16 (non-superuser runtime role); db:check no drift; CI gate green. Probe for the single-role Render shape: NOSUPERUSER NOBYPASSRLS role owning the tables, migrated as that role. Cross-org select, insert, update and delete are blocked; no org and blank org both see 0 rows. Negative control: NO FORCE shows 2 rows. Property 1 holds a real counter-lock wait (pg_locks). Both Bugbot findings on 62d519e were real and fixed in cd82bdb. D-006 wording amended to the site_admins table. Review: PR #3 comment 6753160291.

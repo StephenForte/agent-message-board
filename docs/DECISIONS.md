@@ -48,9 +48,11 @@ FK on the organization so multiple owned orgs can follow without a data migratio
 
 ## D-006 — Site admin role (2026-11-09)
 
-A boolean/role on the user record, granted only by a CLI script
+A row in the `site_admins` table (user_id PK → user), granted only by a CLI script
 (`npm run admin:grant -- <email>`), never through the UI or any agent tool. Site admin does
 not imply read access to board content (PRD §4); admin pages read organization metadata only.
+Amended after T02: it is a separate table, not a column or Better Auth field on the user
+record; no task adds one.
 
 ## D-007 — Tenant isolation (2026-11-09)
 
@@ -161,3 +163,58 @@ Package manager **npm** (no pnpm/corepack on the operator's machine).
 All "Proposed default" rows in PRD §2 and the v0.2 refinements (message categories, composer
 templates, deterministic briefings, launch criteria 14–17) are adopted for Phase 1 as written.
 Changing one needs a superseding entry.
+
+## D-019 — Runtime entry point is a custom Node server (2026-11-09, from T01 / PR #2)
+
+`npm start` / `npm run dev` run `src/lib/server.ts` (via `tsx`), which validates config
+(`src/env.ts`) before `next.prepare()`/`listen()` and logs final status + latency per request.
+Deploy with `npm start` only — never bare `next start` or `output: 'standalone'`, which would
+skip startup validation and completion logging (PRD §13, §14). `src/proxy.ts` propagates
+`x-request-id`. Consequence for UI tasks: the D-011 lint block also bans dynamic `import()`
+under `src/app/**`, so `next/dynamic(() => import(...))` is not available there; ask the
+planner before relaxing it.
+
+## D-020 — FORCE row-level security; isolation must not depend on a second role (2026-11-09)
+
+Amends D-007 layer 3. Tenant tables use `ENABLE` **and** `FORCE ROW LEVEL SECURITY`, so
+policies bind the table owner too. A separate non-owner runtime role is preferred where the
+host allows (T13 checks Render Postgres), but isolation must hold if the app connects as the
+owner. The runtime role must never be a superuser or `BYPASSRLS` (both skip RLS
+unconditionally). Consequence for tests: RLS tests connect as a dedicated non-superuser role,
+and also show that a bypassing role *does* see the rows, so a missing policy cannot pass
+vacuously. Local evidence: Postgres.app roles `postgres` and `stephenforte` are both superusers.
+`agent_tokens` keeps RLS, with one narrow documented bootstrap path for prefix lookup (T02).
+
+## D-021 — Human sign-up and owner activation (2026-11-09, planner; operator may override)
+
+Public email + password sign-up is enabled; email verification is required before any
+organization access or activation. A verified user with no organization sees a "no
+organization yet" page. A user becomes an owner only through site-admin association or an
+owner activation link (PRD §5). Activation links: 32 random bytes, SHA-256 hex stored, shown
+once, expire after 72 hours, single-use under concurrency, and bound to the invited email:
+only a signed-in user whose verified email matches (case-insensitive) can consume one.
+Team invitations stay out of scope (PRD §3).
+
+## D-022 — Message recipients (2026-11-09, planner)
+
+A recipient is any existing agent in the same organization (composite FK), at most 20 per
+message, deduplicated; unknown ids → `validation_failed`. Not filtered by project access:
+agents are labels and tokens hold permissions (PRD §9), and recipients are routing hints that
+grant and hide nothing (PRD §4). Narrows PRD §7's "authorized for that project" because an
+agent identity has no project permission of its own to check.
+
+## D-023 — Site-admin operations on an organization (2026-11-09, planner)
+
+Provisioning, owner association, activation, suspend, and restore run in
+`src/domain/organizations` through one named helper that wraps `withOrgBootstrapTx`, re-reads
+`site_admins` for the acting user inside the same transaction, and writes the audit record
+into the target org with the admin as human actor. `withOrgTx` cannot serve these: it requires
+the owner and rejects suspended orgs. The same re-check rule applies to site-announcement
+writes in `withSiteAdminTx` (T06). Site-announcement changes have no audit row
+(`audit_records.org_id` is required); `announcement_revisions` is their history.
+
+## D-024 — Email configuration keys (2026-11-09, planner)
+
+`RESEND_API_KEY` and `EMAIL_FROM`, required in production by `src/env.ts` (startup refuses and
+names the key, like the existing keys); console adapter outside production. T03 adds them;
+T13 lists them in `render.yaml` as `sync: false`.
