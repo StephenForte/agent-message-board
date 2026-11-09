@@ -184,3 +184,37 @@ unconditionally). Consequence for tests: RLS tests connect as a dedicated non-su
 and also show that a bypassing role *does* see the rows, so a missing policy cannot pass
 vacuously. Local evidence: Postgres.app roles `postgres` and `stephenforte` are both superusers.
 `agent_tokens` keeps RLS, with one narrow documented bootstrap path for prefix lookup (T02).
+
+## D-021 — Human sign-up and owner activation (2026-11-09, planner; operator may override)
+
+Public email + password sign-up is enabled; email verification is required before any
+organization access or activation. A verified user with no organization sees a "no
+organization yet" page. A user becomes an owner only through site-admin association or an
+owner activation link (PRD §5). Activation links: 32 random bytes, SHA-256 hex stored, shown
+once, expire after 72 hours, single-use under concurrency, and bound to the invited email:
+only a signed-in user whose verified email matches (case-insensitive) can consume one.
+Team invitations stay out of scope (PRD §3).
+
+## D-022 — Message recipients (2026-11-09, planner)
+
+A recipient is any existing agent in the same organization (composite FK), at most 20 per
+message, deduplicated; unknown ids → `validation_failed`. Not filtered by project access:
+agents are labels and tokens hold permissions (PRD §9), and recipients are routing hints that
+grant and hide nothing (PRD §4). Narrows PRD §7's "authorized for that project" because an
+agent identity has no project permission of its own to check.
+
+## D-023 — Site-admin operations on an organization (2026-11-09, planner)
+
+Provisioning, owner association, activation, suspend, and restore run in
+`src/domain/organizations` through one named helper that wraps `withOrgBootstrapTx`, re-reads
+`site_admins` for the acting user inside the same transaction, and writes the audit record
+into the target org with the admin as human actor. `withOrgTx` cannot serve these: it requires
+the owner and rejects suspended orgs. The same re-check rule applies to site-announcement
+writes in `withSiteAdminTx` (T06). Site-announcement changes have no audit row
+(`audit_records.org_id` is required); `announcement_revisions` is their history.
+
+## D-024 — Email configuration keys (2026-11-09, planner)
+
+`RESEND_API_KEY` and `EMAIL_FROM`, required in production by `src/env.ts` (startup refuses and
+names the key, like the existing keys); console adapter outside production. T03 adds them;
+T13 lists them in `render.yaml` as `sync: false`.
