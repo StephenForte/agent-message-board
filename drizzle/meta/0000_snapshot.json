@@ -1,5 +1,5 @@
 {
-  "id": "87a7d982-9501-4891-a09b-713f4be0e7cb",
+  "id": "328f4f88-75a1-478f-a828-242473a26098",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -571,15 +571,42 @@
         }
       },
       "policies": {
-        "agent_tokens_tenant": {
-          "name": "agent_tokens_tenant",
+        "agent_tokens_select": {
+          "name": "agent_tokens_select",
           "as": "PERMISSIVE",
-          "for": "ALL",
+          "for": "SELECT",
           "to": [
             "public"
           ],
-          "using": "(\n      org_id = NULLIF(current_setting('app.org_id', true), '')::uuid\n      OR (\n        NULLIF(current_setting('app.org_id', true), '') IS NULL\n        AND prefix = NULLIF(current_setting('app.token_prefix', true), '')\n      )\n    )",
+          "using": "(\n    org_id = NULLIF(current_setting('app.org_id', true), '')::uuid\n    OR (\n      NULLIF(current_setting('app.org_id', true), '') IS NULL\n      AND prefix = NULLIF(current_setting('app.token_prefix', true), '')\n    )\n  )"
+        },
+        "agent_tokens_insert": {
+          "name": "agent_tokens_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "public"
+          ],
           "withCheck": "org_id = NULLIF(current_setting('app.org_id', true), '')::uuid"
+        },
+        "agent_tokens_update": {
+          "name": "agent_tokens_update",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "public"
+          ],
+          "using": "org_id = NULLIF(current_setting('app.org_id', true), '')::uuid",
+          "withCheck": "org_id = NULLIF(current_setting('app.org_id', true), '')::uuid"
+        },
+        "agent_tokens_delete": {
+          "name": "agent_tokens_delete",
+          "as": "PERMISSIVE",
+          "for": "DELETE",
+          "to": [
+            "public"
+          ],
+          "using": "org_id = NULLIF(current_setting('app.org_id', true), '')::uuid"
         }
       },
       "checkConstraints": {
@@ -835,15 +862,42 @@
         }
       },
       "policies": {
-        "announcement_revisions_tenant": {
-          "name": "announcement_revisions_tenant",
+        "announcement_revisions_tenant_select": {
+          "name": "announcement_revisions_tenant_select",
           "as": "PERMISSIVE",
-          "for": "ALL",
+          "for": "SELECT",
           "to": [
             "public"
           ],
-          "using": "(\n      (\n        NULLIF(current_setting('app.org_id', true), '') IS NOT NULL\n        AND (\n          scope = 'site'\n          OR org_id = NULLIF(current_setting('app.org_id', true), '')::uuid\n        )\n      )\n      OR (\n        current_setting('app.site_admin', true) = '1'\n        AND scope = 'site'\n      )\n    )",
-          "withCheck": "(\n      (\n        scope = 'org'\n        AND org_id = NULLIF(current_setting('app.org_id', true), '')::uuid\n      )\n      OR (\n        scope = 'site'\n        AND org_id IS NULL\n        AND current_setting('app.site_admin', true) = '1'\n      )\n    )"
+          "using": "(\n    (\n      NULLIF(current_setting('app.org_id', true), '') IS NOT NULL\n      AND (\n        scope = 'site'\n        OR org_id = NULLIF(current_setting('app.org_id', true), '')::uuid\n      )\n    )\n    OR (\n      current_setting('app.site_admin', true) = '1'\n      AND scope = 'site'\n    )\n  )"
+        },
+        "announcement_revisions_tenant_insert": {
+          "name": "announcement_revisions_tenant_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "public"
+          ],
+          "withCheck": "(\n    (\n      scope = 'org'\n      AND org_id = NULLIF(current_setting('app.org_id', true), '')::uuid\n    )\n    OR (\n      scope = 'site'\n      AND org_id IS NULL\n      AND current_setting('app.site_admin', true) = '1'\n    )\n  )"
+        },
+        "announcement_revisions_tenant_update": {
+          "name": "announcement_revisions_tenant_update",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "public"
+          ],
+          "using": "(\n    (\n      scope = 'org'\n      AND org_id = NULLIF(current_setting('app.org_id', true), '')::uuid\n    )\n    OR (\n      scope = 'site'\n      AND org_id IS NULL\n      AND current_setting('app.site_admin', true) = '1'\n    )\n  )",
+          "withCheck": "(\n    (\n      scope = 'org'\n      AND org_id = NULLIF(current_setting('app.org_id', true), '')::uuid\n    )\n    OR (\n      scope = 'site'\n      AND org_id IS NULL\n      AND current_setting('app.site_admin', true) = '1'\n    )\n  )"
+        },
+        "announcement_revisions_tenant_delete": {
+          "name": "announcement_revisions_tenant_delete",
+          "as": "PERMISSIVE",
+          "for": "DELETE",
+          "to": [
+            "public"
+          ],
+          "using": "(\n    (\n      scope = 'org'\n      AND org_id = NULLIF(current_setting('app.org_id', true), '')::uuid\n    )\n    OR (\n      scope = 'site'\n      AND org_id IS NULL\n      AND current_setting('app.site_admin', true) = '1'\n    )\n  )"
         }
       },
       "checkConstraints": {
@@ -998,15 +1052,42 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {
-        "announcements_tenant": {
-          "name": "announcements_tenant",
+        "announcements_tenant_select": {
+          "name": "announcements_tenant_select",
           "as": "PERMISSIVE",
-          "for": "ALL",
+          "for": "SELECT",
           "to": [
             "public"
           ],
-          "using": "(\n      (\n        NULLIF(current_setting('app.org_id', true), '') IS NOT NULL\n        AND (\n          scope = 'site'\n          OR org_id = NULLIF(current_setting('app.org_id', true), '')::uuid\n        )\n      )\n      OR (\n        current_setting('app.site_admin', true) = '1'\n        AND scope = 'site'\n      )\n    )",
-          "withCheck": "(\n      (\n        scope = 'org'\n        AND org_id = NULLIF(current_setting('app.org_id', true), '')::uuid\n      )\n      OR (\n        scope = 'site'\n        AND org_id IS NULL\n        AND current_setting('app.site_admin', true) = '1'\n      )\n    )"
+          "using": "(\n    (\n      NULLIF(current_setting('app.org_id', true), '') IS NOT NULL\n      AND (\n        scope = 'site'\n        OR org_id = NULLIF(current_setting('app.org_id', true), '')::uuid\n      )\n    )\n    OR (\n      current_setting('app.site_admin', true) = '1'\n      AND scope = 'site'\n    )\n  )"
+        },
+        "announcements_tenant_insert": {
+          "name": "announcements_tenant_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "public"
+          ],
+          "withCheck": "(\n    (\n      scope = 'org'\n      AND org_id = NULLIF(current_setting('app.org_id', true), '')::uuid\n    )\n    OR (\n      scope = 'site'\n      AND org_id IS NULL\n      AND current_setting('app.site_admin', true) = '1'\n    )\n  )"
+        },
+        "announcements_tenant_update": {
+          "name": "announcements_tenant_update",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "public"
+          ],
+          "using": "(\n    (\n      scope = 'org'\n      AND org_id = NULLIF(current_setting('app.org_id', true), '')::uuid\n    )\n    OR (\n      scope = 'site'\n      AND org_id IS NULL\n      AND current_setting('app.site_admin', true) = '1'\n    )\n  )",
+          "withCheck": "(\n    (\n      scope = 'org'\n      AND org_id = NULLIF(current_setting('app.org_id', true), '')::uuid\n    )\n    OR (\n      scope = 'site'\n      AND org_id IS NULL\n      AND current_setting('app.site_admin', true) = '1'\n    )\n  )"
+        },
+        "announcements_tenant_delete": {
+          "name": "announcements_tenant_delete",
+          "as": "PERMISSIVE",
+          "for": "DELETE",
+          "to": [
+            "public"
+          ],
+          "using": "(\n    (\n      scope = 'org'\n      AND org_id = NULLIF(current_setting('app.org_id', true), '')::uuid\n    )\n    OR (\n      scope = 'site'\n      AND org_id IS NULL\n      AND current_setting('app.site_admin', true) = '1'\n    )\n  )"
         }
       },
       "checkConstraints": {

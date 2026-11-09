@@ -1,11 +1,11 @@
 import { spawnSync } from 'node:child_process';
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import pg from 'pg';
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import { rlsExemptTableNames, tenantTableNames } from '../../src/db/schema/index';
 import * as schema from '../../src/db/schema/index';
 import { newId } from '../../src/domain/kernel/ids';
-import { withOrgTx, withTokenLookupTx } from '../../src/domain/kernel/tx';
+import { withOrgTx, withSiteAdminTx, withTokenLookupTx } from '../../src/domain/kernel/tx';
 import {
   adminUrl, insertRoot, openDatabase, runtimeUrl, seedOrg, systemPrincipal,
 } from './helpers';
@@ -165,6 +165,65 @@ test('property 8: prefix lookup returns one token and cannot list the others', a
     return tx.select({ id: schema.agentTokens.id }).from(schema.agentTokens);
   }, runtime.db);
   expect(scoped.map((row) => row.id)).toEqual([seedX.tokenId]);
+
+  const writes = await withTokenLookupTx(seedX.prefix, async (tx) => {
+    const removed = await tx.delete(schema.agentTokens)
+      .where(eq(schema.agentTokens.id, seedX.tokenId))
+      .returning({ id: schema.agentTokens.id });
+    const touched = await tx.update(schema.agentTokens)
+      .set({ revokedAt: new Date() })
+      .where(eq(schema.agentTokens.id, seedX.tokenId))
+      .returning({ id: schema.agentTokens.id });
+    return { removed, touched };
+  }, runtime.db);
+  expect(writes.removed).toEqual([]);
+  expect(writes.touched).toEqual([]);
+  const still = await admin.db.select({ revokedAt: schema.agentTokens.revokedAt })
+    .from(schema.agentTokens)
+    .where(eq(schema.agentTokens.id, seedX.tokenId));
+  expect(still[0]?.revokedAt).toBeNull();
+});
+
+test('site announcements are readable by a tenant and writable only as site admin', async () => {
+  const revisionId = newId();
+  await admin.db.insert(schema.announcementRevisions).values({
+    id: revisionId, scope: 'site', title: 'Site history', body: 'history', version: 1, authorUserId: seedX.userId,
+  });
+
+  const tenant = await withOrgTx(systemPrincipal(seedX.orgId), async (tx) => {
+    const removed = await tx.delete(schema.announcements)
+      .where(eq(schema.announcements.scope, 'site'))
+      .returning({ id: schema.announcements.id });
+    const hijacked = await tx.update(schema.announcements)
+      .set({ scope: 'org', orgId: seedX.orgId, title: 'stolen' })
+      .where(eq(schema.announcements.scope, 'site'))
+      .returning({ id: schema.announcements.id });
+    const history = await tx.delete(schema.announcementRevisions)
+      .where(eq(schema.announcementRevisions.id, revisionId))
+      .returning({ id: schema.announcementRevisions.id });
+    return { removed, hijacked, history };
+  }, runtime.db);
+  expect(tenant.removed).toEqual([]);
+  expect(tenant.hijacked).toEqual([]);
+  expect(tenant.history).toEqual([]);
+
+  const site = await admin.db.select({
+    scope: schema.announcements.scope, orgId: schema.announcements.orgId, title: schema.announcements.title,
+  }).from(schema.announcements).where(eq(schema.announcements.scope, 'site'));
+  expect(site).toEqual([{ scope: 'site', orgId: null, title: 'Site notice' }]);
+
+  const written = await withSiteAdminTx(async (tx) => {
+    const updated = await tx.update(schema.announcements)
+      .set({ title: 'Site notice' })
+      .where(eq(schema.announcements.scope, 'site'))
+      .returning({ id: schema.announcements.id });
+    const removed = await tx.delete(schema.announcementRevisions)
+      .where(eq(schema.announcementRevisions.id, revisionId))
+      .returning({ id: schema.announcementRevisions.id });
+    return { updated, removed };
+  }, runtime.db);
+  expect(written.updated).toHaveLength(1);
+  expect(written.removed).toEqual([{ id: revisionId }]);
 });
 
 test('property 10: migration enables forced RLS and db:check reports no drift', async () => {

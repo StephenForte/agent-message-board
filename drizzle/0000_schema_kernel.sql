@@ -462,60 +462,129 @@ CREATE INDEX "verification_identifier_idx" ON "verification" USING btree ("ident
 CREATE POLICY "agent_project_defaults_tenant" ON "agent_project_defaults" AS PERMISSIVE FOR ALL TO public USING (org_id = NULLIF(current_setting('app.org_id', true), '')::uuid) WITH CHECK (org_id = NULLIF(current_setting('app.org_id', true), '')::uuid);--> statement-breakpoint
 CREATE POLICY "agent_session_projects_tenant" ON "agent_session_projects" AS PERMISSIVE FOR ALL TO public USING (org_id = NULLIF(current_setting('app.org_id', true), '')::uuid) WITH CHECK (org_id = NULLIF(current_setting('app.org_id', true), '')::uuid);--> statement-breakpoint
 CREATE POLICY "agent_sessions_tenant" ON "agent_sessions" AS PERMISSIVE FOR ALL TO public USING (org_id = NULLIF(current_setting('app.org_id', true), '')::uuid) WITH CHECK (org_id = NULLIF(current_setting('app.org_id', true), '')::uuid);--> statement-breakpoint
-CREATE POLICY "agent_tokens_tenant" ON "agent_tokens" AS PERMISSIVE FOR ALL TO public USING ((
-      org_id = NULLIF(current_setting('app.org_id', true), '')::uuid
-      OR (
-        NULLIF(current_setting('app.org_id', true), '') IS NULL
-        AND prefix = NULLIF(current_setting('app.token_prefix', true), '')
-      )
-    )) WITH CHECK (org_id = NULLIF(current_setting('app.org_id', true), '')::uuid);--> statement-breakpoint
+CREATE POLICY "agent_tokens_select" ON "agent_tokens" AS PERMISSIVE FOR SELECT TO public USING ((
+    org_id = NULLIF(current_setting('app.org_id', true), '')::uuid
+    OR (
+      NULLIF(current_setting('app.org_id', true), '') IS NULL
+      AND prefix = NULLIF(current_setting('app.token_prefix', true), '')
+    )
+  ));--> statement-breakpoint
+CREATE POLICY "agent_tokens_insert" ON "agent_tokens" AS PERMISSIVE FOR INSERT TO public WITH CHECK (org_id = NULLIF(current_setting('app.org_id', true), '')::uuid);--> statement-breakpoint
+CREATE POLICY "agent_tokens_update" ON "agent_tokens" AS PERMISSIVE FOR UPDATE TO public USING (org_id = NULLIF(current_setting('app.org_id', true), '')::uuid) WITH CHECK (org_id = NULLIF(current_setting('app.org_id', true), '')::uuid);--> statement-breakpoint
+CREATE POLICY "agent_tokens_delete" ON "agent_tokens" AS PERMISSIVE FOR DELETE TO public USING (org_id = NULLIF(current_setting('app.org_id', true), '')::uuid);--> statement-breakpoint
 CREATE POLICY "agents_tenant" ON "agents" AS PERMISSIVE FOR ALL TO public USING (org_id = NULLIF(current_setting('app.org_id', true), '')::uuid) WITH CHECK (org_id = NULLIF(current_setting('app.org_id', true), '')::uuid);--> statement-breakpoint
-CREATE POLICY "announcement_revisions_tenant" ON "announcement_revisions" AS PERMISSIVE FOR ALL TO public USING ((
-      (
-        NULLIF(current_setting('app.org_id', true), '') IS NOT NULL
-        AND (
-          scope = 'site'
-          OR org_id = NULLIF(current_setting('app.org_id', true), '')::uuid
-        )
-      )
-      OR (
-        current_setting('app.site_admin', true) = '1'
-        AND scope = 'site'
-      )
-    )) WITH CHECK ((
-      (
-        scope = 'org'
-        AND org_id = NULLIF(current_setting('app.org_id', true), '')::uuid
-      )
-      OR (
+CREATE POLICY "announcement_revisions_tenant_select" ON "announcement_revisions" AS PERMISSIVE FOR SELECT TO public USING ((
+    (
+      NULLIF(current_setting('app.org_id', true), '') IS NOT NULL
+      AND (
         scope = 'site'
-        AND org_id IS NULL
-        AND current_setting('app.site_admin', true) = '1'
+        OR org_id = NULLIF(current_setting('app.org_id', true), '')::uuid
       )
-    ));--> statement-breakpoint
-CREATE POLICY "announcements_tenant" ON "announcements" AS PERMISSIVE FOR ALL TO public USING ((
-      (
-        NULLIF(current_setting('app.org_id', true), '') IS NOT NULL
-        AND (
-          scope = 'site'
-          OR org_id = NULLIF(current_setting('app.org_id', true), '')::uuid
-        )
-      )
-      OR (
-        current_setting('app.site_admin', true) = '1'
-        AND scope = 'site'
-      )
-    )) WITH CHECK ((
-      (
-        scope = 'org'
-        AND org_id = NULLIF(current_setting('app.org_id', true), '')::uuid
-      )
-      OR (
+    )
+    OR (
+      current_setting('app.site_admin', true) = '1'
+      AND scope = 'site'
+    )
+  ));--> statement-breakpoint
+CREATE POLICY "announcement_revisions_tenant_insert" ON "announcement_revisions" AS PERMISSIVE FOR INSERT TO public WITH CHECK ((
+    (
+      scope = 'org'
+      AND org_id = NULLIF(current_setting('app.org_id', true), '')::uuid
+    )
+    OR (
+      scope = 'site'
+      AND org_id IS NULL
+      AND current_setting('app.site_admin', true) = '1'
+    )
+  ));--> statement-breakpoint
+CREATE POLICY "announcement_revisions_tenant_update" ON "announcement_revisions" AS PERMISSIVE FOR UPDATE TO public USING ((
+    (
+      scope = 'org'
+      AND org_id = NULLIF(current_setting('app.org_id', true), '')::uuid
+    )
+    OR (
+      scope = 'site'
+      AND org_id IS NULL
+      AND current_setting('app.site_admin', true) = '1'
+    )
+  )) WITH CHECK ((
+    (
+      scope = 'org'
+      AND org_id = NULLIF(current_setting('app.org_id', true), '')::uuid
+    )
+    OR (
+      scope = 'site'
+      AND org_id IS NULL
+      AND current_setting('app.site_admin', true) = '1'
+    )
+  ));--> statement-breakpoint
+CREATE POLICY "announcement_revisions_tenant_delete" ON "announcement_revisions" AS PERMISSIVE FOR DELETE TO public USING ((
+    (
+      scope = 'org'
+      AND org_id = NULLIF(current_setting('app.org_id', true), '')::uuid
+    )
+    OR (
+      scope = 'site'
+      AND org_id IS NULL
+      AND current_setting('app.site_admin', true) = '1'
+    )
+  ));--> statement-breakpoint
+CREATE POLICY "announcements_tenant_select" ON "announcements" AS PERMISSIVE FOR SELECT TO public USING ((
+    (
+      NULLIF(current_setting('app.org_id', true), '') IS NOT NULL
+      AND (
         scope = 'site'
-        AND org_id IS NULL
-        AND current_setting('app.site_admin', true) = '1'
+        OR org_id = NULLIF(current_setting('app.org_id', true), '')::uuid
       )
-    ));--> statement-breakpoint
+    )
+    OR (
+      current_setting('app.site_admin', true) = '1'
+      AND scope = 'site'
+    )
+  ));--> statement-breakpoint
+CREATE POLICY "announcements_tenant_insert" ON "announcements" AS PERMISSIVE FOR INSERT TO public WITH CHECK ((
+    (
+      scope = 'org'
+      AND org_id = NULLIF(current_setting('app.org_id', true), '')::uuid
+    )
+    OR (
+      scope = 'site'
+      AND org_id IS NULL
+      AND current_setting('app.site_admin', true) = '1'
+    )
+  ));--> statement-breakpoint
+CREATE POLICY "announcements_tenant_update" ON "announcements" AS PERMISSIVE FOR UPDATE TO public USING ((
+    (
+      scope = 'org'
+      AND org_id = NULLIF(current_setting('app.org_id', true), '')::uuid
+    )
+    OR (
+      scope = 'site'
+      AND org_id IS NULL
+      AND current_setting('app.site_admin', true) = '1'
+    )
+  )) WITH CHECK ((
+    (
+      scope = 'org'
+      AND org_id = NULLIF(current_setting('app.org_id', true), '')::uuid
+    )
+    OR (
+      scope = 'site'
+      AND org_id IS NULL
+      AND current_setting('app.site_admin', true) = '1'
+    )
+  ));--> statement-breakpoint
+CREATE POLICY "announcements_tenant_delete" ON "announcements" AS PERMISSIVE FOR DELETE TO public USING ((
+    (
+      scope = 'org'
+      AND org_id = NULLIF(current_setting('app.org_id', true), '')::uuid
+    )
+    OR (
+      scope = 'site'
+      AND org_id IS NULL
+      AND current_setting('app.site_admin', true) = '1'
+    )
+  ));--> statement-breakpoint
 CREATE POLICY "audit_records_tenant" ON "audit_records" AS PERMISSIVE FOR ALL TO public USING (org_id = NULLIF(current_setting('app.org_id', true), '')::uuid) WITH CHECK (org_id = NULLIF(current_setting('app.org_id', true), '')::uuid);--> statement-breakpoint
 CREATE POLICY "events_tenant" ON "events" AS PERMISSIVE FOR ALL TO public USING (org_id = NULLIF(current_setting('app.org_id', true), '')::uuid) WITH CHECK (org_id = NULLIF(current_setting('app.org_id', true), '')::uuid);--> statement-breakpoint
 CREATE POLICY "idempotency_records_tenant" ON "idempotency_records" AS PERMISSIVE FOR ALL TO public USING (org_id = NULLIF(current_setting('app.org_id', true), '')::uuid) WITH CHECK (org_id = NULLIF(current_setting('app.org_id', true), '')::uuid);--> statement-breakpoint

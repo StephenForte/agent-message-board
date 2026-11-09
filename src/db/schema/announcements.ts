@@ -24,7 +24,7 @@ export const announcements = pgTable('announcements', {
 }, (table) => [
   uniqueIndex('announcements_one_site').on(table.scope).where(sql`${table.scope} = 'site'`),
   uniqueIndex('announcements_one_org').on(table.orgId).where(sql`${table.scope} = 'org'`),
-  announcementPolicy('announcements_tenant'),
+  ...announcementPolicy('announcements_tenant'),
   check('announcements_scope', scopeCheck(table.scope, table.orgId)),
   check('announcements_title_len', sql`octet_length(${table.title}) between 1 and 16384`),
   check('announcements_body_len', sql`octet_length(${table.body}) <= 16384`),
@@ -44,7 +44,7 @@ export const announcementRevisions = pgTable('announcement_revisions', {
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
 }, (table) => [
   unique('announcement_revisions_version').on(table.scope, table.orgId, table.version).nullsNotDistinct(),
-  announcementPolicy('announcement_revisions_tenant'),
+  ...announcementPolicy('announcement_revisions_tenant'),
   check('announcement_revisions_scope', scopeCheck(table.scope, table.orgId)),
   check('announcement_revisions_title_len', sql`octet_length(${table.title}) between 1 and 16384`),
   check('announcement_revisions_body_len', sql`octet_length(${table.body}) <= 16384`),

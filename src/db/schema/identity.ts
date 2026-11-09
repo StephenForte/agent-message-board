@@ -28,7 +28,7 @@ export const agentTokens = pgTable('agent_tokens', {
   ...timestamps(),
 }, (table) => [
   unique('agent_tokens_org_id_id').on(table.orgId, table.id),
-  tokenBootstrapPolicy(),
+  ...tokenBootstrapPolicy(),
   check('agent_tokens_label_len', sql`char_length(${table.label}) between 1 and 200`),
   check('agent_tokens_prefix', sql`${table.prefix} ~ '^[0-9A-Za-z]{8}$'`),
   check('agent_tokens_hash', sql`${table.tokenHash} ~ '^[0-9a-f]{64}$'`),

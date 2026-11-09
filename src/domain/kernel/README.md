@@ -95,10 +95,11 @@ Migrations are `npm run db:migrate`, never on web start.
 `agent_tokens` has RLS. A normal org transaction sees only that org's tokens.
 Lookup by prefix happens before the org is known, so the policy also allows the
 single row whose `prefix` equals `app.token_prefix`, and only when `app.org_id`
-is unset. `withTokenLookupTx` is that path. It selects id, org, prefix, hash,
-scope, `can_create_projects`, expiry, and revocation. It does not return other
-tokens. Setting a prefix while an org is set does not reveal another org's token.
-Inserts still require `app.org_id`.
+is unset. That arm is `SELECT` only. `withTokenLookupTx` is that path. It
+selects id, org, prefix, hash, scope, `can_create_projects`, expiry, and
+revocation. It does not return other tokens, and it cannot update or delete the
+matched row. Setting a prefix while an org is set does not reveal another org's
+token. Inserts, updates, and deletes require `app.org_id`.
 
 ## Tables without RLS
 
@@ -111,9 +112,10 @@ Inserts still require `app.org_id`.
 
 Every other table has `ENABLE` and `FORCE ROW LEVEL SECURITY`. A missing
 `app.org_id` matches no rows. `announcements` and `announcement_revisions` are
-the exception inside the policy: with an org set, `scope = 'site'` is visible
-to every org, and org rows only match their own org. Site rows are written only
-through `withSiteAdminTx`.
+the exception on `SELECT`: with an org set, `scope = 'site'` is visible to
+every org, and org rows only match their own org. `INSERT`, `UPDATE`, and
+`DELETE` of a site row require `withSiteAdminTx`. A tenant context can read the
+site row and cannot delete it or rewrite it into their own org.
 
 ## Worked example
 
