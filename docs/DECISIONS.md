@@ -171,3 +171,14 @@ skip startup validation and completion logging (PRD §13, §14). `src/proxy.ts` 
 `x-request-id`. Consequence for UI tasks: the D-011 lint block also bans dynamic `import()`
 under `src/app/**`, so `next/dynamic(() => import(...))` is not available there; ask the
 planner before relaxing it.
+
+## D-020 — FORCE row-level security; isolation must not depend on a second role (2026-11-09)
+
+Amends D-007 layer 3. Tenant tables use `ENABLE` **and** `FORCE ROW LEVEL SECURITY`, so
+policies bind the table owner too. A separate non-owner runtime role is preferred where the
+host allows (T13 checks Render Postgres), but isolation must hold if the app connects as the
+owner. The runtime role must never be a superuser or `BYPASSRLS` (both skip RLS
+unconditionally). Consequence for tests: RLS tests connect as a dedicated non-superuser role,
+and also show that a bypassing role *does* see the rows, so a missing policy cannot pass
+vacuously. Local evidence: Postgres.app roles `postgres` and `stephenforte` are both superusers.
+`agent_tokens` keeps RLS, with one narrow documented bootstrap path for prefix lookup (T02).
