@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { DomainError } from '../kernel';
 
 export const categories = ['note', 'finding', 'decision', 'blocker', 'handoff'] as const;
-const id = z.uuid();
+const id = z.uuid().transform((value) => value.toLowerCase());
 const recipients = z.array(id).max(20).transform((ids) => [...new Set(ids)].sort()).default([]);
 const body = z.string().refine((value) => !value.includes('\0'), 'NUL is not supported');
 const key = z.string().min(1).max(200);
@@ -17,7 +17,7 @@ export const flagsInput = z.object({
   urgent: z.boolean().optional(), pinned: z.boolean().optional(), idempotencyKey: key,
 }).strict();
 export const listInput = z.object({
-  projectIds: z.array(id).min(1).max(100).transform((ids) => [...new Set(ids)].sort()),
+  projectIds: z.array(id).min(1).transform((ids) => [...new Set(ids)].sort()),
   status: z.enum(['active', 'archived', 'all']).default('active'), category: z.enum(categories).optional(),
   urgent: z.boolean().optional(), pinned: z.boolean().optional(), authorAgentId: id.optional(),
   authorUserId: z.string().min(1).max(200).optional(), recipientAgentId: id.optional(),

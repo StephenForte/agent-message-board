@@ -2,11 +2,11 @@ import { expect, test, vi } from 'vitest';
 import { binding, decodeCursor, encodeCursor } from '../../../src/domain/messages/cursor';
 import { flagsInput, listInput, parse, replyInput, rootInput } from '../../../src/domain/messages/validation';
 
-const id = '019a0000-0000-7000-8000-000000000001';
+const id = '019aabcd-abcd-7abc-8abc-abcdef000001';
 test('defaults and recipient normalization are deterministic', () => {
-  expect(parse(rootInput, { projectId: id, title: 'title', body: 'raw', recipients: [id, id], idempotencyKey: 'key' }))
+  expect(parse(rootInput, { projectId: id, title: 'title', body: 'raw', recipients: [id, id.toUpperCase()], idempotencyKey: 'key' }))
     .toMatchObject({ category: 'note', urgent: false, pinned: false, recipients: [id] });
-  expect(parse(listInput, { projectIds: [id, id] })).toEqual({ projectIds: [id], status: 'active', sort: 'activity', limit: 20 });
+  expect(parse(listInput, { projectIds: [id, id.toUpperCase()] })).toEqual({ projectIds: [id], status: 'active', sort: 'activity', limit: 20 });
 });
 test.each([0, 101, 1.5])('page limit %s is rejected', (limit) => {
   expect(() => parse(listInput, { projectIds: [id], limit })).toThrow('validation_failed');

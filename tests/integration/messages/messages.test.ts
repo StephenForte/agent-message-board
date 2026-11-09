@@ -13,13 +13,13 @@ const rootData = (projectId: string, extra = {}) => ({ projectId, title: 'Root',
 
 test('human and agent provenance, recipients deduplicate, raw bodies and InTx composition', async () => {
   const s = await seed();
-  const root = await postRoot(s.human, rootData(s.projectId, { recipients: [s.agentId, s.agentId] }));
+  const root = await postRoot(s.human, rootData(s.projectId, { recipients: [s.agentId, s.agentId.toUpperCase()] }));
   expect(root.authorDisplayName).toBe('Real Owner');
   expect(root.authorKind).toBe('human');
   const reply = await postReply(s.agent, { rootId: root.id, body: 'Agent reply', recipients: [s.agentId], idempotencyKey: kernel.newId() });
   expect(reply).toMatchObject({ projectId: s.projectId, authorDisplayName: 'agent', authorTokenId: s.tokenId, authorSessionId: s.sessionId });
   const composed = await kernel.withOrgTx(s.agent, async (tx, ctx) => ({
-    list: await listThreadsInTx(tx, ctx, { projectIds: [s.projectId] }),
+    list: await listThreadsInTx(tx, ctx, { projectIds: [s.projectId.toUpperCase()] }),
     thread: await getThreadInTx(tx, ctx, { rootId: root.id }),
     history: await getThreadHistoryInTx(tx, ctx, root.id),
   }), runtime.db);
