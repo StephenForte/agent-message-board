@@ -64,7 +64,7 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 
 | ID | Title | Wave | After | Model | Status |
 |----|-------|------|-------|-------|--------|
-| T01 | Scaffold: Next.js, TS, lint, Vitest/Playwright, CI, env, logging, Markdown | 1 | — | mid | dispatched |
+| T01 | Scaffold: Next.js, TS, lint, Vitest/Playwright, CI, env, logging, Markdown | 1 | — | mid | approved — PR #2 |
 | T02 | Full schema + migration 0000, RLS, domain kernel | 1 | T01 | strong | planned |
 | T03 | Human auth, site admin, org provisioning/suspension | 2 | T02 | strong | planned |
 | T04 | Projects + credentials domain (tokens, agents, sessions, defaults) | 2 | T02 | strong | planned |
@@ -119,3 +119,5 @@ Wave 2 runs five tasks in parallel in one repo: each parallel worker needs its o
 ## Verification log
 
 (Planner records what was verified for each merge, and how.)
+
+- **T01** (PR #2, head `8cbed34`, approved 2026-11-09): planner fresh clone on macOS/Node 26/PG 18. lint, typecheck, secret-free build pass; unit 28/28; integration 2/2; startup-proof 3/3. e2e 3/3 taken from the CI log (no local Chromium). 17 probes (Markdown XSS variants with a negative control, prod env rejection without value echo, nested token redaction) all green. Bugbot WebSocket finding is a false positive: `next/dist/server/next.js:336-350`. Review: PR #2 comment 6751297434.
