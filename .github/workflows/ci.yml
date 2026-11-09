@@ -29,6 +29,7 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run test:integration
+      - run: npm run db:check
       # No runtime configuration is provided to build.
       - run: npm run build
       - run: npx playwright install --with-deps chromium
