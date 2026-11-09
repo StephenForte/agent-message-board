@@ -65,12 +65,12 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 | ID | Title | Wave | After | Model | Status |
 |----|-------|------|-------|-------|--------|
 | T01 | Scaffold: Next.js, TS, lint, Vitest/Playwright, CI, env, logging, Markdown | 1 | — | mid | merged — PR #2 (274d91a) |
-| T02 | Full schema + migration 0000, RLS, domain kernel | 1 | T01 | strong | approved — PR #3 (cd82bdb), awaiting merge |
-| T03 | Human auth, site admin, org provisioning/suspension | 2 | T02 | strong | planned |
-| T04 | Projects + credentials domain (tokens, agents, sessions, defaults) | 2 | T02 | strong | planned |
-| T05 | Messages domain (threads, flags, lifecycle, search) | 2 | T02 | strong | planned |
-| T06 | Announcements domain | 2 | T02 | mid | planned |
-| T13 | Render staging deploy, render.yaml, ops docs | 2 | T01 | mid | planned |
+| T02 | Full schema + migration 0000, RLS, domain kernel | 1 | T01 | strong | merged — PR #3 (0fc8997) |
+| T03 | Human auth, site admin, org provisioning/suspension | 2 | T02 | strong | brief ready — docs/briefs/T03.md |
+| T04 | Projects + credentials domain (tokens, agents, sessions, defaults) | 2 | T02 | strong | brief ready — docs/briefs/T04.md |
+| T05 | Messages domain (threads, flags, lifecycle, search) | 2 | T02 | strong | brief ready — docs/briefs/T05.md |
+| T06 | Announcements domain | 2 | T02 | mid | brief ready — docs/briefs/T06.md |
+| T13 | Render staging deploy, render.yaml, ops docs | 2 | T01 | mid | brief ready — docs/briefs/T13.md |
 | T07 | Briefing/check_board engine + cursors | 3 | T04,T05,T06 | strong | planned |
 | T08 | Web shell: org home, projects, settings, announcement editors, audit view | 3 | T03,T04,T06 | mid | planned |
 | T09 | Web board: board, thread, composer, templates, search/filters, flags | 3 | T03,T05 | mid | planned |
@@ -82,7 +82,10 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 | T16 | Four-client release gate + two-agent cross-machine pilot (operator-run) | 6 | T12,T15 | operator | planned |
 
 Wave 2 runs five tasks in parallel in one repo: each parallel worker needs its own clone
-(the brief names it and its teardown). Wave 1 is serial and runs in the main checkout.
+(the brief names it and its teardown). Wave 2 clones: `/Users/stephenforte/amb-T03`, `amb-T04`, `amb-T05`,
+`amb-T06`, `amb-T13`, each deleted at hand-back. No migration number is assigned in wave 2
+(D-002); a worker that needs one stops and reports. Wave-2 dispatch needs docs PR #1 merged
+first, so D-019–D-024 and the briefs are on `main`. Wave 1 is serial and runs in the main checkout.
 
 ### Task notes
 
