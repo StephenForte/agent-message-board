@@ -66,7 +66,7 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 |----|-------|------|-------|-------|--------|
 | T01 | Scaffold: Next.js, TS, lint, Vitest/Playwright, CI, env, logging, Markdown | 1 | — | mid | merged — PR #2 (274d91a) |
 | T02 | Full schema + migration 0000, RLS, domain kernel | 1 | T01 | strong | merged — PR #3 (0fc8997) |
-| T03 | Human auth, site admin, org provisioning/suspension | 2 | T02 | strong | brief ready — docs/briefs/T03.md |
+| T03 | Human auth, site admin, org provisioning/suspension | 2 | T02 | strong | re-dispatched — first attempt blocked on brief scope (server.ts route logging, env.test.ts); brief amended |
 | T04 | Projects + credentials domain (tokens, agents, sessions, defaults) | 2 | T02 | strong | brief ready — docs/briefs/T04.md |
 | T05 | Messages domain (threads, flags, lifecycle, search) | 2 | T02 | strong | brief ready — docs/briefs/T05.md |
 | T06 | Announcements domain | 2 | T02 | mid | brief ready — docs/briefs/T06.md |
