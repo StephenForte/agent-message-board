@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { credentialPathPrefixes } from '../auth/paths';
 
 const agentToken = /amb_[A-Za-z0-9]+_[A-Za-z0-9]+/g;
 const sensitiveKey = /^(authorization|proxy-authorization|cookie|set-cookie|password|token|secret|body)$/i;
@@ -28,4 +29,17 @@ export function createLogger(level: keyof typeof levels = 'info', write: (line: 
     if (levels[severity] < levels[level]) return;
     write(JSON.stringify(redact({ ...fields, level: severity, time: new Date().toISOString() })));
   };
+}
+
+/** Drop queries and redact everything below a known credential-bearing path prefix. */
+export function redactRoute(rawUrl: string): string {
+  const raw = rawUrl.split(/[?#]/, 1)[0] ?? '/';
+  let path: string;
+  try {
+    const decoded = decodeURIComponent(raw);
+    // Next canonicalizes duplicate slashes and dot segments; redact before its redirect too.
+    path = new URL(decoded.replace(/^\/+/g, '/'), 'https://route.invalid').pathname.replace(/\/+/g, '/');
+  } catch { return '/[redacted]'; }
+  const prefix = credentialPathPrefixes.find((candidate) => path.toLowerCase().startsWith(candidate.toLowerCase()));
+  return prefix ? `${prefix}[redacted]` : raw;
 }

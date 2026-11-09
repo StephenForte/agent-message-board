@@ -1,7 +1,19 @@
 import { spawnSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 
-const env = { ...process.env, NODE_ENV: 'production' };
+const env = { ...process.env, NODE_ENV: 'production',
+  RESEND_API_KEY: 're_startup_fixture', EMAIL_FROM: 'Board <board@example.test>' };
+
+for (const key of ['RESEND_API_KEY', 'EMAIL_FROM']) {
+  const missingEmail = { ...env, DATABASE_URL: 'postgres://127.0.0.1:1/x',
+    BETTER_AUTH_SECRET: 'a'.repeat(48), CURSOR_HMAC_SECRET: 'b'.repeat(48), APP_BASE_URL: 'https://example.test' };
+  delete missingEmail[key];
+  const rejected = spawnSync('npm', ['start'], { env: missingEmail, encoding: 'utf8', timeout: 20_000 });
+  assert.equal(rejected.error, undefined);
+  assert.notEqual(rejected.status, 0);
+  assert.match(rejected.stdout + rejected.stderr, new RegExp(`Invalid server configuration:.*${key}`));
+  console.log(`PASS: production startup refuses missing ${key}`);
+}
 for (const key of ['DATABASE_URL', 'BETTER_AUTH_SECRET', 'CURSOR_HMAC_SECRET', 'APP_BASE_URL']) delete env[key];
 const startup = spawnSync('npm', ['start'], { env, encoding: 'utf8', timeout: 20_000 });
 assert.equal(startup.error, undefined);

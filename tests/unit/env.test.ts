@@ -5,13 +5,14 @@ const production = {
   NODE_ENV: 'production', DATABASE_URL: 'postgresql://localhost/amb',
   BETTER_AUTH_SECRET: 'a'.repeat(48), CURSOR_HMAC_SECRET: 'b'.repeat(48),
   APP_BASE_URL: 'https://example.test',
+  RESEND_API_KEY: 're_test_fixture', EMAIL_FROM: 'Board <board@example.test>',
 };
 
 describe('fail-closed config', () => {
   test('accepts valid production configuration', () => {
     expect(loadEnv(production).LOG_LEVEL).toBe('info');
   });
-  test.each(['DATABASE_URL', 'BETTER_AUTH_SECRET', 'CURSOR_HMAC_SECRET', 'APP_BASE_URL'])(
+  test.each(['DATABASE_URL', 'BETTER_AUTH_SECRET', 'CURSOR_HMAC_SECRET', 'APP_BASE_URL', 'RESEND_API_KEY', 'EMAIL_FROM'])(
     'rejects missing production %s without disclosing values', (key) => {
       const source: Record<string, string | undefined> = { ...production };
       delete source[key];

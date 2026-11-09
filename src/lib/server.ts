@@ -3,7 +3,7 @@ import next from 'next';
 import { loadEnv } from '../env';
 import { checkDatabase } from '../domain/kernel/health';
 import { closeDb } from '../db/client';
-import { createLogger, requestId } from './log';
+import { createLogger, requestId, redactRoute } from './log';
 
 async function main() {
   const dev = process.argv.includes('--dev');
@@ -27,7 +27,7 @@ async function main() {
     req.headers['x-request-id'] = id;
     res.setHeader('x-request-id', id);
     // Never log query strings, request headers, or content bodies.
-    const route = (req.url ?? '/').split('?')[0];
+    const route = redactRoute(req.url ?? '/');
     res.once('finish', () => log('info', {
       request_id: id, route, status: res.statusCode,
       latency_ms: Math.round((performance.now() - started) * 100) / 100,

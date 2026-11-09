@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { createLogger, redact, requestId } from '../../src/lib/log';
+import { createLogger, redact, requestId, redactRoute } from '../../src/lib/log';
 
 test('redacts nested secrets, bodies, headers and agent tokens in any substring', () => {
   const input = {
@@ -32,4 +32,16 @@ test('honours safe request ids and replaces unsafe or secret ids', () => {
   for (const input of [null, '', 'bad id', 'a'.repeat(129), 'amb_public_private', 'line\nbreak']) {
     expect(requestId(input)).toMatch(/^[a-f0-9-]{36}$/);
   }
+});
+
+test('credential path segments are redacted while ordinary paths retain their names', () => {
+  expect(redactRoute('/activate/private-credential?next=secret')).toBe('/activate/[redacted]');
+  expect(redactRoute('/api/auth/reset-password/private-credential')).toBe('/api/auth/reset-password/[redacted]');
+  expect(redactRoute('/%61ctivate/private-credential/extra')).toBe('/activate/[redacted]');
+  expect(redactRoute('//activate/private-credential')).toBe('/activate/[redacted]');
+  expect(redactRoute('/ignored/../activate/private-credential')).toBe('/activate/[redacted]');
+  expect(redactRoute('https://example.com/api/auth/reset-password/private-credential')).toBe('/api/auth/reset-password/[redacted]');
+  expect(redactRoute('/api/health?private=secret')).toBe('/api/health');
+  expect(redactRoute('/projects/alpha')).toBe('/projects/alpha');
+  expect(redactRoute('/activate/%bad')).toBe('/[redacted]');
 });
