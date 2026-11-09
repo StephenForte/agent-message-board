@@ -72,5 +72,6 @@ export default defineConfig({
       APP_BASE_URL: 'https://localhost:3101/', LOG_LEVEL: 'info',
       RESEND_API_KEY: 're_e2e_fixture', EMAIL_FROM: 'Board <board@example.test>',
     },
-  }, { command: httpsProxyCommand, url: 'https://localhost:3101/api/health', ignoreHTTPSErrors: true, reuseExistingServer: false }],
+  }, { command: httpsProxyCommand, url: 'https://localhost:3101/api/health', ignoreHTTPSErrors: true, reuseExistingServer: false,
+    gracefulShutdown: { signal: 'SIGTERM', timeout: 5000 } }],
 });
