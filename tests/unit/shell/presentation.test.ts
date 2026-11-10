@@ -4,6 +4,7 @@ import { DomainError, versionConflict } from '../../../src/domain/kernel';
 import { auditScope, decodeAuditCursor, encodeAuditCursor } from '../../../src/domain/auditlog/cursor';
 import { actorLabel, summarizeChange } from '../../../src/domain/auditlog/summary';
 import { domainFailure } from '../../../src/app/(app)/domain-message';
+import { editorNotice } from '../../../src/app/(app)/settings/announcement-state';
 import { newId } from '../../../src/domain/kernel/ids';
 
 vi.stubEnv('NODE_ENV', 'test');
@@ -49,4 +50,17 @@ describe('domain failure text', () => {
     expect(failure.message).toContain('Current version is 4');
     expect(failure.message).toContain('draft');
   });
+});
+
+test('the newest announcement action replaces an older notice', () => {
+  const saved = { message: 'Announcement saved.', version: 2 };
+  const cleared = { message: 'Announcement cleared.', version: 2, cleared: true };
+  const conflict = { message: 'Current version is 1.', conflict: { currentVersion: 1, stateLabel: 'published' } };
+  expect(editorNotice('save', saved, cleared)).toEqual({ role: 'status', message: 'Announcement saved.' });
+  expect(editorNotice('clear', conflict, cleared)).toEqual({ role: 'status', message: 'Announcement cleared.' });
+  expect(editorNotice('save', conflict, cleared)?.role).toBe('alert');
+  expect(editorNotice('save', { message: 'Enter a title.', field: 'title' }, cleared)).toEqual({
+    role: 'field', field: 'title', message: 'Enter a title.',
+  });
+  expect(editorNotice(null, saved, cleared)).toBeNull();
 });
