@@ -63,10 +63,11 @@ projects:
           - name: amb-staging-db
             region: oregon
             plan: 0.1c-256mb
-            # Quoted string. Omitting this field selects the platform default,
-            # which is currently 18. Immutable after create.
+            # Postgres 18 (D-031). The live staging database is 18, and a major
+            # version cannot change after creation. CI tests postgres:18, so
+            # this pin must match. Quoted string; immutable after create.
             # https://render.com/docs/blueprint-spec
-            postgresMajorVersion: "16"
+            postgresMajorVersion: "18"
             # Default disk for this plan. Storage is $0.30/GB.
             # https://render.com/docs/blueprint-spec
             # https://render.com/pricing

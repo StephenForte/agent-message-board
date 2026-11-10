@@ -179,7 +179,7 @@ test('reply full-text matches, root filters, archive/restore history and body-fr
   expect(await getThreadHistory(s.agent, root.id.toUpperCase())).toEqual(history);
   expect(history[0]).toMatchObject({ actorKind: 'agent', before: { status: 'active', version: 1 }, after: { status: 'archived', version: 2 } });
   expect(history[1]).toMatchObject({ actorKind: 'human', userId: s.userId });
-  const events = await admin.db.select().from(schema.events).where(eq(schema.events.orgId, s.orgId));
+  const events = await admin.db.select().from(schema.events).where(eq(schema.events.orgId, s.orgId)).orderBy(schema.events.seq);
   expect(events.map((e) => e.kind)).toEqual(['message.created', 'message.replied', 'message.flag_changed', 'message.archived', 'message.restored']);
   for (const e of events) { expect(JSON.stringify(e.payload)).not.toContain('body'); expect(JSON.stringify(e.payload)).not.toContain('distinctivequasar'); }
 });
