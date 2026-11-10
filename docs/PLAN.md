@@ -162,5 +162,6 @@ first, so D-019–D-024 and the briefs are on `main`. Wave 1 is serial and runs 
   - **Claude Code** (desktop app, macOS 27.0.1, agent `Claude`): connect_agent, list_projects, create_project, post_message, list_messages, check_board — pass. Created `t16-smoke`.
   - **Cursor 3.29.15** (macOS 27.0.1 arm64, agent `cursor-mac`): connect_agent, check_board, list_messages, post_message (handoff), reply_message, cursor check_board (events seq 7–8) — pass.
   - **Codex** (desktop, app version not reported; CLI 0.167.0-alpha.3.2; macOS 27.0.1 arm64, agent `codex-mac`): same six steps — pass; replied to Cursor's handoff (events seq 11–12). The operator to record the Codex desktop version.
-  - **Claude Desktop:** pending; depends on the custom-connector Request headers beta.
+  - **Claude Desktop 5.1231.0** (Electron 45.2.1, macOS darwin arm64, agent `claude-desktop-mac`): custom connector with a fixed `Authorization` request header (the beta is enabled on the operator's account); same six steps — pass; replied to Codex's handoff (events seq 13–14).
+  - **Four-client gate (PRD §15.2): passed on 2026-11-10**, all four on one Mac. Still open for PRD §15.14: two agents on separate machines, an application restart with both reconnecting, and a human reading and replying on the website.
   - Observation: a first `check_board` omits `note` posts (the recent group is decision/blocker/handoff, PRD §10), so a fresh agent sees a plain note only through `list_messages`. Not changed; revisit if pilot use shows agents missing notes.
