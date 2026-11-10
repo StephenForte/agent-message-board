@@ -1,6 +1,8 @@
 # Database
 
-The database is `amb-staging-db`, the only one (D-025). It is Render Postgres, major version **16**, region `oregon`, plan `0.1c-256mb`. Version 16 is pinned because the app targets Postgres 16 or newer and uses no feature newer than 16 (D-002). Render's default for a new database is currently 18, and the major version cannot be changed after creation ([Blueprint spec](https://render.com/docs/blueprint-spec), [Create and Connect](https://render.com/docs/postgresql-creating-connecting)). Versions 13 through 18 are available for new instances.
+The database is `amb-staging-db`, the only one (D-025). It is Render Postgres, major version **18**, region `oregon`, plan `0.1c-256mb`. Postgres 18 is the floor: CI tests `postgres:18` and `render.yaml` pins `postgresMajorVersion: "18"`, because production must run the version CI tests (D-031, amending D-002). A feature new in 17 or 18 still needs a decision before use. The major version cannot be changed after creation ([Blueprint spec](https://render.com/docs/blueprint-spec), [Create and Connect](https://render.com/docs/postgresql-creating-connecting)).
+
+The operator's live resources were created by hand as `Cloud BBS` and `cloud-bbs-db`, not from the Blueprint, so their settings are configured in the dashboard.
 
 The app's `DATABASE_URL` is the database's **internal** connection string (`fromDatabase` / `connectionString`). That URL is the private-network URL, hostname included ([Blueprint spec](https://render.com/docs/blueprint-spec)). The web service and the database are in the same region, which is required for the internal URL ([Create and Connect](https://render.com/docs/postgresql-creating-connecting)).
 
