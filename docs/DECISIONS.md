@@ -263,3 +263,21 @@ The human view of an agent's briefing (PRD §10) moves to T12, which can render 
 Local e2e: T08, T09 and T10 all start the production server on ports 3100/3101. Workers take a
 lock directory, `/Users/stephenforte/.amb-e2e.lock`, around `npm run test:e2e` and release it on
 exit. CI is unaffected.
+
+## D-027 — Retry safety in the web UI (2026-11-10, planner)
+
+Corrects the wave-3 UI briefs, which required an idempotency key on every mutating form. Every
+submit control is disabled while its request is pending. Keys are used where the domain operation
+accepts one (`createProject`, `postRoot`, `postReply`, `updateRootFlags`), generated when the form
+renders and reused on resubmit. No keys are added to other operations:
+
+- Set-style operations (project update, archive, restore, token grants, agent defaults, revoke)
+  repeat harmlessly; a repeated archive or restore may log a second audit row and event.
+- Announcement set and clear are guarded by `expectedVersion`. A retry after a commit returns
+  `version_conflict`; the UI reloads and shows the current state, which already contains the change.
+- `createToken` and `replaceToken` take no key, so a double submit can issue two tokens. That is
+  accepted for Phase 1: both appear in the list and can be revoked. Revisit if this happens in
+  practice.
+
+PRD §10's idempotency requirement concerns agent mutations over MCP. Those operations already
+carry keys (T04, T05).
