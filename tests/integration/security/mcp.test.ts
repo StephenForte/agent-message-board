@@ -224,11 +224,16 @@ test('tools list names are exactly the nine matrix operations and privileged ope
   expect(listed.json.result.tools.map((t: { name: string }) => t.name).sort()).toEqual([
     'check_board', 'connect_agent', 'create_project', 'get_thread', 'list_messages', 'list_projects', 'post_message', 'reply_message', 'update_message',
   ]);
-  for (const name of ['create_organization', 'create_token', 'revoke_token', 'replace_token', 'set_token_grants', 'set_agent_defaults', 'edit_announcements', 'archive_project', 'suspend_organization']) {
-    expect(error(await f.broad.call(name)).code).toBe('validation_failed');
+  const restricted = await credentials.createToken(f.owner, { label: 'registry restricted', scope: 'projects', projectIds: [f.projectId] });
+  const c = await connection(restricted.secret);
+  expect((await rpc(c.secret, 'tools/list')).json.result.tools).toEqual(listed.json.result.tools);
+  for (const caller of [f.broad, c]) {
+    for (const name of ['create_organization', 'create_token', 'revoke_token', 'replace_token', 'set_token_grants', 'set_agent_defaults', 'edit_announcements', 'archive_project', 'suspend_organization']) {
+      expect(error(await caller.call(name)).code).toBe('validation_failed');
+    }
+    const forged = await post(caller, f.projectId, { author_user_id: f.userId });
+    expect(error(forged).code).toBe('validation_failed'); noLeak(forged.raw, [f.userId]);
   }
-  const forged = await post(f.broad, f.projectId, { author_user_id: f.userId });
-  expect(error(forged).code).toBe('validation_failed'); noLeak(forged.raw, [f.userId]);
 });
 
 test('restricted token executes all nine tools within grants and revoked or expired tokens execute none', async () => {

@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { createToken } from '../../../src/domain/credentials';
 import { newId } from '../../../src/domain/kernel';
+import { getProjectBySlug } from '../../../src/domain/projects';
 import { listThreads } from '../../../src/domain/messages';
 import { closeDb, expectNoInjection, seedOwner, seedProject, signIn } from '../board/helpers';
 import { seedPerson, signIn as signInPerson } from '../shell/helpers';
@@ -103,6 +104,11 @@ test('admin without ownership and verified no-org user reach no browser content 
       await page.goto(path); await expect(page).toHaveURL(/\/no-organization$/);
       expect((await page.locator('main').innerText()).includes(project.name)).toBe(false);
     }
+    expect((await page.request.post('/api/mcp', { data: { jsonrpc: '2.0', id: 1, method: 'tools/list' } })).status()).toBe(401);
+    if (!admin) {
+      expect((await page.goto('/admin'))?.status()).toBe(404);
+      expect((await page.goto('/admin/announcement'))?.status()).toBe(404);
+    }
     await page.context().clearCookies();
   }
 });
@@ -122,4 +128,16 @@ test('browser cookies cannot invoke MCP tools and human posts cannot choose anot
   await expect(page.locator('#thread-content')).toContainText(title);
   const rows = await listThreads(owner.principal(), { projectIds: [project.id], query: title });
   expect(rows.items).toHaveLength(1); expect(rows.items[0].authorUserId).toBe(owner.id);
+});
+
+
+test('owner archives and restores a project through browser settings', async ({ page }) => {
+  const owner = await seedOwner(); const project = await seedProject(owner);
+  await signIn(page, owner.email); await page.goto(`/projects/${project.slug}/settings`);
+  await page.getByRole('button', { name: 'Archive project', exact: true }).click();
+  await expect(page.getByText(`Slug ${project.slug} · Archived`, { exact: true })).toBeVisible();
+  expect((await getProjectBySlug(owner.principal(), project.slug)).status).toBe('archived');
+  await page.getByRole('button', { name: 'Restore project', exact: true }).click();
+  await expect(page.getByText(`Slug ${project.slug} · Active`, { exact: true })).toBeVisible();
+  expect((await getProjectBySlug(owner.principal(), project.slug)).status).toBe('active');
 });
