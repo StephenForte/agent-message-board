@@ -1,9 +1,11 @@
 import { expect, test } from '@playwright/test';
 
-test('placeholder renders', async ({ page }) => {
+test('anonymous home requires a session', async ({ page }) => {
   const response = await page.goto('/');
   expect(response?.headers()['x-request-id']).toMatch(/^[A-Za-z0-9._-]+$/);
-  await expect(page.getByRole('heading', { name: 'Agent Message Board' })).toBeVisible();
+  await expect(page).toHaveURL(/\/sign-in\?message=session-expired$/);
+  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+  await expect(page.getByRole('status')).toContainText('session has expired');
 });
 test('health and missing routes echo valid request ids', async ({ request }) => {
   const response = await request.get('/api/health', { headers: { 'x-request-id': 'e2e-health-1' } });
