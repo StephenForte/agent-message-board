@@ -1,6 +1,6 @@
 # Database
 
-Staging database: `amb-staging-db`. Production database: `amb-prod-db`. Both are Render Postgres, major version **16**, region `oregon`, plan `0.1c-256mb`. Version 16 is pinned because the app targets Postgres 16 or newer and uses no feature newer than 16 (D-002). Render's default for a new database is currently 18, and the major version cannot be changed after creation ([Blueprint spec](https://render.com/docs/blueprint-spec), [Create and Connect](https://render.com/docs/postgresql-creating-connecting)). Versions 13 through 18 are available for new instances.
+The database is `amb-staging-db`, the only one (D-025). It is Render Postgres, major version **16**, region `oregon`, plan `0.1c-256mb`. Version 16 is pinned because the app targets Postgres 16 or newer and uses no feature newer than 16 (D-002). Render's default for a new database is currently 18, and the major version cannot be changed after creation ([Blueprint spec](https://render.com/docs/blueprint-spec), [Create and Connect](https://render.com/docs/postgresql-creating-connecting)). Versions 13 through 18 are available for new instances.
 
 The app's `DATABASE_URL` is the database's **internal** connection string (`fromDatabase` / `connectionString`). That URL is the private-network URL, hostname included ([Blueprint spec](https://render.com/docs/blueprint-spec)). The web service and the database are in the same region, which is required for the internal URL ([Create and Connect](https://render.com/docs/postgresql-creating-connecting)).
 
@@ -111,4 +111,4 @@ Tables without row-level security are the ones listed in the kernel README (Bett
 
 ## Storage
 
-Each database is created with a 15 GB disk. You can raise storage later. You cannot shrink it ([Create and Connect](https://render.com/docs/postgresql-creating-connecting)). Storage autoscaling is left off so a full disk does not silently buy more disk. A database that runs out of storage is suspended. Add storage from the database's Plan page, then resume it. After an increase you cannot increase it again for 6 hours. Details are in that same document.
+The database is created with a 15 GB disk. You can raise storage later. You cannot shrink it ([Create and Connect](https://render.com/docs/postgresql-creating-connecting)). Storage autoscaling is left off so a full disk does not silently buy more disk. A database that runs out of storage is suspended. Add storage from the database's Plan page, then resume it. After an increase you cannot increase it again for 6 hours. Details are in that same document.

@@ -1,6 +1,6 @@
 # Backups and recovery
 
-Both databases use the paid plan `0.1c-256mb`. Paid Render Postgres is backed up continuously for point-in-time recovery. The free plan has no recovery and no logical backups ([Recovery and Backups](https://render.com/docs/postgresql-backups)). Databases are encrypted at rest with AES-256, and that encryption covers backups ([Create and Connect](https://render.com/docs/postgresql-creating-connecting)).
+`amb-staging-db` uses the paid plan `0.1c-256mb`. It is the only database (D-025). Paid Render Postgres is backed up continuously for point-in-time recovery. The free plan has no recovery and no logical backups ([Recovery and Backups](https://render.com/docs/postgresql-backups)). Databases are encrypted at rest with AES-256, and that encryption covers backups ([Create and Connect](https://render.com/docs/postgresql-creating-connecting)).
 
 ## What this plan provides
 
@@ -14,7 +14,7 @@ From [Recovery and Backups](https://render.com/docs/postgresql-backups) and the 
 
 A restore does not rewind the existing instance in place. Render creates a new instance at the chosen time. You check it, then point services at it, then delete or suspend the old one. Steps, including the Dashboard path (database → Recovery → Restore Database), are in [Recovery and Backups](https://render.com/docs/postgresql-backups).
 
-The internal and external URLs of the new instance are new. `DATABASE_URL` on the web service is wired with `fromDatabase` to `amb-staging-db` or `amb-prod-db`. A recovered instance is a different database until you either update that wiring or replace the original. Read the connection strings from the Dashboard. Do not paste them into git.
+The internal and external URLs of the new instance are new. `DATABASE_URL` on the web service is wired with `fromDatabase` to `amb-staging-db`. A recovered instance is a different database until you either update that wiring or replace the original. Read the connection strings from the Dashboard. Do not paste them into git.
 
 ## How this meets the Phase 1 targets
 
@@ -24,7 +24,7 @@ Point-in-time recovery is stricter than a daily snapshot. The recovery point can
 
 Logical exports are a second copy you trigger yourself. They are retained for 7 days. They are not the daily automation PRD §14 names. The continuous backup is that automation. Keep an export when you want a file you can download. Restoring an export uses `pg_restore` against an empty database, as in the Render doc. Prefer point-in-time recovery for an incident. An export is older than a point-in-time target by however long it has been since you created it.
 
-High availability (a standby that takes over) is a different feature. It needs a Pro workspace or higher, at least 1 CPU, and Postgres 13 or newer ([Blueprint spec](https://render.com/docs/blueprint-spec)). These databases are on `0.1c-256mb`. HA is not configured.
+High availability (a standby that takes over) is a different feature. It needs a Pro workspace or higher, at least 1 CPU, and Postgres 13 or newer ([Blueprint spec](https://render.com/docs/blueprint-spec)). This database is on `0.1c-256mb`. HA is not configured.
 
 ## What T15 still has to do
 
