@@ -1,11 +1,11 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useActionState, useState, type ChangeEvent } from 'react';
 import { defaultCanCreateProjects, scopeCopy, type TokenScope } from './copy';
 import { formatWhen, inputClass, prefixLabel, primaryButton, secondaryButton } from './format';
 import { createTokenAction, replaceTokenAction, revokeTokenAction, setTokenGrantsAction, type MessageState, type SecretState } from './actions';
 
-export type ProjectChoice = { id: string; name: string };
+export type ProjectChoice = { id: string; name: string; archived?: boolean };
 
 export type TokenView = {
   id: string;
@@ -42,60 +42,100 @@ function SecretReveal({ secret, prefix, children }: { secret: string; prefix: st
   </div>;
 }
 
+function expiryIso(value: string): string {
+  if (!value) return '';
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString();
+}
+
+function projectLabel(project: ProjectChoice): string {
+  return project.archived ? `${project.name} (archived)` : project.name;
+}
+
 function ExpiryField() {
-  const [iso, setIso] = useState('');
+  const [local, setLocal] = useState('');
   return <>
     <label className="block space-y-1">Expiry (optional)
-      <input className={inputClass} type="datetime-local" onChange={(event) => {
-        const value = event.target.value;
-        setIso(value ? new Date(value).toISOString() : '');
-      }} />
+      <input className={inputClass} type="datetime-local" value={local} onChange={(event) => setLocal(event.target.value)} />
     </label>
-    <input type="hidden" name="expiresAt" value={iso} />
+    <input type="hidden" name="expiresAt" value={expiryIso(local)} />
   </>;
 }
 
-function ProjectChoices({ projects, selected }: { projects: ProjectChoice[]; selected?: ReadonlySet<string> }) {
+function ProjectChoices({ projects, selected, onToggle }: {
+  projects: ProjectChoice[];
+  selected: ReadonlySet<string>;
+  onToggle?: (id: string, checked: boolean) => void;
+}) {
   if (projects.length === 0) return <p>No projects yet.</p>;
   return <ul className="space-y-2">
     {projects.map((project) => <li key={project.id}><label className="flex items-center gap-2">
-      <input type="checkbox" name="projectIds" value={project.id} defaultChecked={selected?.has(project.id) ?? false} />
-      {project.name}
+      <input
+        type="checkbox"
+        name="projectIds"
+        value={project.id}
+        {...(onToggle
+          ? { checked: selected.has(project.id), onChange: (event: ChangeEvent<HTMLInputElement>) => onToggle(project.id, event.target.checked) }
+          : { defaultChecked: selected.has(project.id) })}
+      />
+      {projectLabel(project)}
     </label></li>)}
   </ul>;
 }
 
-export function CreateTokenForm({ projects }: { projects: ProjectChoice[] }) {
-  const [state, action, pending] = useActionState(createTokenAction, blankSecret);
+function CreateTokenFields({ projects, action, pending }: {
+  projects: ProjectChoice[];
+  action: (data: FormData) => void | Promise<void>;
+  pending: boolean;
+}) {
   const [scope, setScope] = useState<TokenScope>('org');
   const [canCreate, setCanCreate] = useState(true);
+  const [picked, setPicked] = useState<ReadonlySet<string>>(() => new Set());
   function choose(next: TokenScope) {
     setScope(next);
     setCanCreate(defaultCanCreateProjects(next));
   }
+  function toggle(id: string, checked: boolean) {
+    setPicked((current) => {
+      const next = new Set(current);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+  return <form action={action} className="space-y-4">
+    <label className="block space-y-1">Label
+      <input name="label" required maxLength={200} autoComplete="off" className={inputClass} />
+    </label>
+    <fieldset className="space-y-3">
+      <legend className="font-medium">Scope</legend>
+      <label className="flex items-center gap-2"><input type="radio" name="scope" value="org" checked={scope === 'org'} onChange={() => choose('org')} />Broad</label>
+      <p>{scopeCopy('org')}</p>
+      <label className="flex items-center gap-2"><input type="radio" name="scope" value="projects" checked={scope === 'projects'} onChange={() => choose('projects')} />Restricted</label>
+      <p>{scopeCopy('projects')}</p>
+    </fieldset>
+    {scope === 'projects' ? <fieldset className="space-y-2">
+      <legend className="font-medium">Projects</legend>
+      <ProjectChoices projects={projects} selected={picked} onToggle={toggle} />
+    </fieldset> : null}
+    <label className="flex items-center gap-2">
+      <input type="checkbox" name="canCreateProjects" value="true" checked={canCreate} onChange={(event) => setCanCreate(event.target.checked)} />
+      Can create projects
+    </label>
+    <ExpiryField />
+    <button disabled={pending} className={primaryButton}>{pending ? 'Creating token…' : 'Create token'}</button>
+  </form>;
+}
+
+export function CreateTokenForm({ projects }: { projects: ProjectChoice[] }) {
+  const [generation, setGeneration] = useState(0);
+  const [state, action, pending] = useActionState(async (previous: SecretState, data: FormData) => {
+    const result = await createTokenAction(previous, data);
+    if (result.prefix) setGeneration((current) => current + 1);
+    return result;
+  }, blankSecret);
   return <div className="space-y-4">
-    <form action={action} className="space-y-4">
-      <label className="block space-y-1">Label
-        <input name="label" required maxLength={200} autoComplete="off" className={inputClass} />
-      </label>
-      <fieldset className="space-y-3">
-        <legend className="font-medium">Scope</legend>
-        <label className="flex items-center gap-2"><input type="radio" name="scope" value="org" checked={scope === 'org'} onChange={() => choose('org')} />Broad</label>
-        <p>{scopeCopy('org')}</p>
-        <label className="flex items-center gap-2"><input type="radio" name="scope" value="projects" checked={scope === 'projects'} onChange={() => choose('projects')} />Restricted</label>
-        <p>{scopeCopy('projects')}</p>
-      </fieldset>
-      {scope === 'projects' ? <fieldset className="space-y-2">
-        <legend className="font-medium">Projects</legend>
-        <ProjectChoices projects={projects} />
-      </fieldset> : null}
-      <label className="flex items-center gap-2">
-        <input type="checkbox" name="canCreateProjects" value="true" checked={canCreate} onChange={(event) => setCanCreate(event.target.checked)} />
-        Can create projects
-      </label>
-      <ExpiryField />
-      <button disabled={pending} className={primaryButton}>{pending ? 'Creating token…' : 'Create token'}</button>
-    </form>
+    <CreateTokenFields key={generation} projects={projects} action={action} pending={pending} />
     {state.message ? <p role="status">{state.message}</p> : null}
     {state.secret && state.prefix ? <SecretReveal secret={state.secret} prefix={state.prefix} /> : null}
   </div>;
@@ -138,13 +178,30 @@ export function ReplaceControl({ token }: { token: TokenView }) {
 }
 
 export function GrantsControl({ token, projects }: { token: TokenView; projects: ProjectChoice[] }) {
-  const [state, action, pending] = useActionState(setTokenGrantsAction, blankMessage);
-  return <form action={action} className="space-y-3">
+  const [saved, setSaved] = useState(token.projectIds);
+  const [state, setState] = useState(blankMessage);
+  const [pending, setPending] = useState(false);
+  const selected = new Set(saved);
+  const choices = projects.filter((project) => !project.archived || selected.has(project.id) || token.projectIds.includes(project.id));
+  const visible = new Set(choices.map((project) => project.id));
+  const retained = token.projectIds.filter((id) => !visible.has(id));
+  async function save(data: FormData) {
+    setPending(true);
+    try {
+      const result = await setTokenGrantsAction(blankMessage, data);
+      setState(result);
+      setSaved(data.getAll('projectIds').map(String));
+    } finally {
+      setPending(false);
+    }
+  }
+  return <form key={saved.slice().sort().join('|')} action={save} className="space-y-3">
     <input type="hidden" name="tokenId" value={token.id} />
+    {retained.map((id) => <input key={id} type="hidden" name="projectIds" defaultValue={id} />)}
     <fieldset className="space-y-2">
       <legend className="font-medium">Project grants</legend>
       <p>The change applies on the agent&apos;s next request.</p>
-      <ProjectChoices projects={projects} selected={new Set(token.projectIds)} />
+      <ProjectChoices projects={choices} selected={selected} />
     </fieldset>
     <button disabled={pending} className={secondaryButton}>{pending ? 'Saving grants…' : `Save grants for ${token.label}`}</button>
     {state.message ? <p role="status">{state.message}</p> : null}

@@ -19,15 +19,16 @@ export default async function TokensPage() {
   let failure: string | undefined;
   let missing = false;
   let projects: ProjectChoice[] = [];
+  let catalog: ProjectChoice[] = [];
   let views: TokenView[] = [];
   try {
-    const [tokens, named, choices] = await Promise.all([
+    const [tokens, named] = await Promise.all([
       listTokens(principal),
       listProjects(principal, { includeArchived: true }),
-      listProjects(principal),
     ]);
     const names = new Map(named.map((project) => [project.id, project.name]));
-    projects = choices.map((project) => ({ id: project.id, name: project.name }));
+    catalog = named.map((project) => ({ id: project.id, name: project.name, archived: project.status === 'archived' }));
+    projects = catalog.filter((project) => !project.archived);
     views = tokens.map((token) => ({
       id: token.id,
       label: token.label,
@@ -54,7 +55,7 @@ export default async function TokensPage() {
     </section>
     <section aria-label="Token list" className="space-y-4">
       <h2 className="text-xl font-semibold">Your tokens</h2>
-      <TokenList tokens={views} projects={projects} />
+      <TokenList tokens={views} projects={catalog} />
     </section>
   </PageShell>;
 }

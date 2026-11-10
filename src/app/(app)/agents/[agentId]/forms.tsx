@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useState } from 'react';
 import { secondaryButton } from '../../tokens/format';
 import { setAgentDefaultsAction, type MessageState } from './actions';
 
@@ -11,9 +11,21 @@ export function DefaultsForm({ agentId, projects, selectedIds }: {
   projects: { id: string; name: string }[];
   selectedIds: string[];
 }) {
-  const [state, action, pending] = useActionState(setAgentDefaultsAction, blank);
-  const selected = new Set(selectedIds);
-  return <form action={action} className="space-y-3">
+  const [saved, setSaved] = useState(selectedIds);
+  const [state, setState] = useState(blank);
+  const [pending, setPending] = useState(false);
+  const selected = new Set(saved);
+  async function save(data: FormData) {
+    setPending(true);
+    try {
+      const result = await setAgentDefaultsAction(blank, data);
+      setState(result);
+      setSaved(data.getAll('projectIds').map(String));
+    } finally {
+      setPending(false);
+    }
+  }
+  return <form key={saved.slice().sort().join('|')} action={save} className="space-y-3">
     <input type="hidden" name="agentId" value={agentId} />
     <fieldset className="space-y-2">
       <legend className="font-medium">Default projects</legend>

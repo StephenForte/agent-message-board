@@ -13,7 +13,7 @@ import { account, user } from '../../../src/db/schema/auth';
 import { organizations } from '../../../src/db/schema/org';
 import { authenticateBearer, connectAgent, createToken, getAgentDefaults, listAgentSessions } from '../../../src/domain/credentials';
 import { DomainError, newId, type HumanPrincipal, withOrgBootstrapTx } from '../../../src/domain/kernel';
-import { createProject, listProjects } from '../../../src/domain/projects';
+import { archiveProject, createProject, listProjects, restoreProject } from '../../../src/domain/projects';
 
 const password = 'synthetic-e2e-password';
 const previousDatabaseUrl = process.env.DATABASE_URL;
@@ -300,8 +300,54 @@ test('editing grants removes a project from the token principal', async ({ page 
   await item.getByRole('checkbox', { name: alpha.name }).uncheck();
   await item.getByRole('button', { name: 'Save grants for Grant token', exact: true }).click();
   await expect(item.getByRole('status')).toContainText('applies on the agent\'s next request');
+  await expect(item.getByRole('checkbox', { name: alpha.name })).not.toBeChecked();
+  await expect(item.getByRole('checkbox', { name: beta.name })).toBeChecked();
+  await item.getByRole('button', { name: 'Save grants for Grant token', exact: true }).click();
+  await expect(item.getByRole('status')).toContainText('applies on the agent\'s next request');
   const projects = await listProjects(await bearer(secret));
   expect(projects.map((project) => project.id)).toEqual([beta.id]);
+});
+
+test('a second create does not keep the previous expiry or project selection', async ({ page }) => {
+  const owner = await seedOwner();
+  const project = await makeProject(owner, 'Expiry project');
+  await signIn(page, owner.email);
+  await page.goto('/tokens');
+  const create = page.getByRole('region', { name: 'Create a token' });
+  await create.getByLabel('Label', { exact: true }).fill('Expiring token');
+  await create.getByRole('radio', { name: 'Restricted' }).check();
+  await create.getByRole('checkbox', { name: project.name }).check();
+  await create.getByLabel('Expiry (optional)').fill('2026-12-01T09:30');
+  await create.getByRole('button', { name: 'Create token', exact: true }).click();
+  const firstSecret = await readSecret(page);
+  await expect(create.getByRole('radio', { name: 'Broad' })).toBeChecked();
+  await expect(create.getByLabel('Expiry (optional)')).toHaveValue('');
+  await expect(create.getByRole('checkbox', { name: project.name })).toHaveCount(0);
+  await create.getByLabel('Label', { exact: true }).fill('Plain token');
+  await create.getByRole('button', { name: 'Create token', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: 'Token secret', exact: true })).not.toHaveValue(firstSecret);
+  await page.reload();
+  const plain = tokenItem(page, 'Plain token');
+  await expect(plain.getByRole('definition').filter({ hasText: 'No expiry' })).toBeVisible();
+  await expect(plain.getByRole('definition').filter({ hasText: 'Broad' })).toBeVisible();
+});
+
+test('saving grants keeps an archived project that is still granted', async ({ page }) => {
+  const owner = await seedOwner();
+  const alpha = await makeProject(owner, 'Archived grant');
+  const beta = await makeProject(owner, 'Live grant');
+  const issued = await createToken(humanOf(owner), { label: 'Archive token', scope: 'projects', projectIds: [alpha.id, beta.id], canCreateProjects: false });
+  await archiveProject(humanOf(owner), alpha.id);
+  await signIn(page, owner.email);
+  await page.goto('/tokens');
+  const item = tokenItem(page, 'Archive token');
+  await expect(item.getByRole('checkbox', { name: 'Archived grant (archived)' })).toBeChecked();
+  await item.getByRole('button', { name: 'Save grants for Archive token', exact: true }).click();
+  await expect(item.getByRole('status')).toContainText('applies on the agent\'s next request');
+  await expect(item.getByRole('checkbox', { name: 'Archived grant (archived)' })).toBeChecked();
+  await restoreProject(humanOf(owner), alpha.id);
+  const projects = await listProjects(await bearer(issued.secret));
+  expect(projects.map((project) => project.id).sort()).toEqual([alpha.id, beta.id].sort());
 });
 
 test('agents list sessions and default projects without a running status', async ({ page }) => {
@@ -326,6 +372,9 @@ test('agents list sessions and default projects without a running status', async
   const sessions = await listAgentSessions(humanOf(owner), connected.agent.id);
   expect(sessions).toHaveLength(1);
   await page.getByRole('checkbox', { name: project.name }).check();
+  await page.getByRole('button', { name: 'Save defaults', exact: true }).click();
+  await expect(page.getByRole('status')).toHaveText('Defaults saved.');
+  await expect(page.getByRole('checkbox', { name: project.name })).toBeChecked();
   await page.getByRole('button', { name: 'Save defaults', exact: true }).click();
   await expect(page.getByRole('status')).toHaveText('Defaults saved.');
   const defaults = await getAgentDefaults(humanOf(owner), connected.agent.id);
