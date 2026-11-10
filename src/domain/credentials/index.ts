@@ -1,5 +1,6 @@
 import { and, asc, eq, sql } from 'drizzle-orm';
 import type { DbTx } from '../../db/client';
+import { organizations } from '../../db/schema/org';
 import { agentTokens, agents } from '../../db/schema/identity';
 import { agentProjectDefaults, tokenProjectGrants } from '../../db/schema/projects';
 import { agentSessionProjects, agentSessions } from '../../db/schema/sessions';
@@ -233,4 +234,53 @@ export async function resolveTargetProjectsInTx(tx: DbTx, ctx: TxContext, input:
 }
 export function resolveTargetProjects(principal: AgentPrincipal, input: { projectId?: string; mode: 'read' | 'write' }) {
   agentOnly(principal, true); return withOrgTx(principal, (tx, ctx) => resolveTargetProjectsInTx(tx, ctx, input));
+}
+
+
+/** Owner onboarding is atomic: no credential or identity survives a failed setup. */
+export function setupAgentConnection(principal: Principal, input: {
+  agentName: string; clientLabel?: string; token: CreateTokenInput; defaultProjectIds: string[];
+}) {
+  requireOwner(principal);
+  if (typeof input.agentName !== 'string' || !/^[A-Za-z0-9._-]{1,64}$/.test(input.agentName)) throw new DomainError('validation_failed', { field: 'agentName' });
+  if (input.clientLabel !== undefined) textField(input.clientLabel, 'clientLabel', 200);
+  return withOrgTx(principal, async (tx, ctx) => {
+    const ids = [...new Set(input.defaultProjectIds)];
+    await validateProjects(tx, ctx, ids);
+    if (input.token.scope === 'projects' && ids.some((id) => !input.token.projectIds?.includes(id))) throw new DomainError('validation_failed', { field: 'defaultProjectIds' });
+    const inserted = await tx.insert(agents).values({ id: newId(), orgId: ctx.orgId, name: input.agentName }).onConflictDoNothing().returning();
+    const [agent] = await tx.select().from(agents).where(and(eq(agents.orgId, ctx.orgId), sql`lower(${agents.name}) = lower(${input.agentName})`)).for('update');
+    if (!agent) throw new DomainError('unavailable');
+    if (inserted.length) await audit(tx, ctx, 'agent.register', 'agent', agent.id, null, { name: agent.name });
+    const issued = await issueToken(tx, ctx, input.token);
+    const before = await tx.select().from(agentProjectDefaults).where(and(eq(agentProjectDefaults.orgId, ctx.orgId), eq(agentProjectDefaults.agentId, agent.id)));
+    await tx.delete(agentProjectDefaults).where(and(eq(agentProjectDefaults.orgId, ctx.orgId), eq(agentProjectDefaults.agentId, agent.id)));
+    if (ids.length) await tx.insert(agentProjectDefaults).values(ids.map((projectId) => ({ orgId: ctx.orgId, agentId: agent.id, projectId })));
+    await accessEvent(tx, ctx, 'agent', agent.id);
+    await audit(tx, ctx, 'agent.defaults', 'agent', agent.id, { projectIds: before.map((d) => d.projectId) }, { projectIds: ids });
+    return { ...issued, agent: serializeAgent(agent), defaultProjectIds: ids };
+  });
+}
+
+/** Reads recorded sessions only; never accepts or uses a bearer secret. */
+export function getConnectionDiagnostics(principal: Principal, input: { agentId: string; tokenId: string }) {
+  requireOwner(principal);
+  return withOrgTx(principal, async (tx, ctx) => {
+    const agent = await requireAgent(tx, ctx, input.agentId);
+    const token = await lockedToken(tx, ctx, input.tokenId);
+    const [org] = await tx.select({ name: organizations.name }).from(organizations).where(eq(organizations.id, ctx.orgId));
+    const grants = await tx.select().from(tokenProjectGrants).where(and(eq(tokenProjectGrants.orgId, ctx.orgId), eq(tokenProjectGrants.tokenId, token.id)));
+    const allowed = new Set(grants.map((g) => g.projectId));
+    const projects = (await listProjectsInTx(tx, ctx, { includeArchived: true }))
+      .filter((p) => token.scope === 'org' || allowed.has(p.id))
+      .map((p) => ({ id: p.id, slug: p.slug, name: p.name, access: p.status === 'archived' ? 'read-only' as const : 'read/write' as const }));
+    const defaults = await tx.select().from(agentProjectDefaults).where(and(eq(agentProjectDefaults.orgId, ctx.orgId), eq(agentProjectDefaults.agentId, agent.id)));
+    const defaultIds = new Set(defaults.map((d) => d.projectId));
+    const sessions = await tx.select({ id: agentSessions.id, clientLabel: agentSessions.clientLabel, createdAt: agentSessions.createdAt, lastSeenAt: agentSessions.lastSeenAt })
+      .from(agentSessions).where(and(eq(agentSessions.orgId, ctx.orgId), eq(agentSessions.agentId, agent.id), eq(agentSessions.tokenId, token.id))).orderBy(asc(agentSessions.createdAt));
+    return { tokenStatus: token.revokedAt ? 'Revoked' : token.expiresAt && token.expiresAt.getTime() <= Date.now() ? 'Expired' : 'Live', org: { name: org!.name }, agent: serializeAgent(agent), token: serializeToken(token, [...allowed]),
+      sessions: sessions.map((s) => ({ ...s, createdAt: s.createdAt.toISOString(), lastSeenAt: s.lastSeenAt.toISOString() })),
+      projects, defaults: projects.filter((p) => defaultIds.has(p.id) && p.access === 'read/write'),
+      capabilities: { canCreateProjects: token.canCreateProjects } };
+  });
 }

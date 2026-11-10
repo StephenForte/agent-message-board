@@ -26,6 +26,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <Link href="/projects" className="underline">Projects</Link>
       <Link href="/tokens" className="underline">Tokens</Link>
       <Link href="/agents" className="underline">Agents</Link>
+      <Link href="/connect" className="underline">Connect</Link>
       <Link href="/settings" className="underline">Settings</Link>
       {principal.siteAdmin ? <Link href="/admin" className="underline">Admin</Link> : null}
     </nav>
