@@ -4,18 +4,21 @@ This is the first-time path for someone who has not applied a Render Blueprint b
 
 Read [secrets.md](secrets.md) before you fill in values. Read [database.md](database.md) before you grant the first site admin. Recovery is in [backups.md](backups.md).
 
+## This URL is the only environment
+
+`staging` is the only environment (D-025, amending D-004). There is no production environment. Auto-deploy stays on: every green commit on `main` deploys here. Sign-up is open (D-021). The URL is for the team only until launch. Do not share it more widely.
+
 ## What the Blueprint creates
 
-One Render project, `agent-message-board`, with two environments (D-004). A Hobby workspace allows two environments per project ([pricing](https://render.com/pricing)).
+One Render project, `agent-message-board`, with one environment, `staging`.
 
 | Environment | Web service | Database |
 | --- | --- | --- |
 | `staging` | `amb-staging-web` | `amb-staging-db` |
-| `prod` | `amb-prod-web` | `amb-prod-db` |
 
-All four resources are in `oregon`. The web service and its database must share a region so the internal database URL works ([Create and Connect to Render Postgres](https://render.com/docs/postgresql-creating-connecting)).
+Both resources are in `oregon`. The web service and its database must share a region so the internal database URL works ([Create and Connect to Render Postgres](https://render.com/docs/postgresql-creating-connecting)).
 
-Each web service:
+The web service:
 
 - Node 22, from `NODE_VERSION` (same major as `.nvmrc`). Render's precedence is `NODE_VERSION`, then `.node-version`, then `.nvmrc`, then `package.json` `engines` ([Setting Your Node.js Version](https://render.com/docs/node-version)). `engines` is `>=22` with no upper bound; left alone, Render would resolve that range to the newest Node, which is not 22. The Blueprint sets `NODE_VERSION` so that does not happen.
 - Build: `npm ci --include=dev && npm run build`
@@ -32,13 +35,13 @@ Prices are from [Render's pricing page](https://render.com/pricing) as checked f
 
 | Resource | Plan | Why this plan | Price |
 | --- | --- | --- | --- |
-| Each web service | `0.5c-512mb` | Cheapest paid web plan. The pre-deploy command exists only on paid web services, private services, and background workers ([Deploys](https://render.com/docs/deploys#pre-deploy-command)). The free web plan does not run it, and it also has no shell ([SSH](https://render.com/docs/ssh)). | $7/month each |
-| Each database | `0.1c-256mb` | Cheapest paid Postgres plan. Paid Postgres has point-in-time recovery. The free plan does not ([Recovery and Backups](https://render.com/docs/postgresql-backups)). | $6/month each |
-| Each database disk | 15 GB | The default disk for `0.1c-256mb` ([Blueprint spec](https://render.com/docs/blueprint-spec)). Set explicitly so a later default change does not resize it. Storage is $0.30/GB ([pricing](https://render.com/pricing)). | $4.50/month each |
+| Web service `amb-staging-web` | `0.5c-512mb` | Cheapest paid web plan. The pre-deploy command exists only on paid web services, private services, and background workers ([Deploys](https://render.com/docs/deploys#pre-deploy-command)). The free web plan does not run it, and it also has no shell ([SSH](https://render.com/docs/ssh)). | $7/month |
+| Database `amb-staging-db` | `0.1c-256mb` | Cheapest paid Postgres plan. Paid Postgres has point-in-time recovery. The free plan does not ([Recovery and Backups](https://render.com/docs/postgresql-backups)). | $6/month |
+| Database disk | 15 GB | The default disk for `0.1c-256mb` ([Blueprint spec](https://render.com/docs/blueprint-spec)). Set explicitly so a later default change does not resize it. Storage is $0.30/GB ([pricing](https://render.com/pricing)). | $4.50/month |
 
-Two environments: **$35/month** before bandwidth. Hobby includes 5 GB of bandwidth, then $0.15/GB. Pipeline minutes for builds and pre-deploy are included up to 500 minutes/month on Hobby, then $5 per 1,000 minutes ([Build Pipeline](https://render.com/docs/build-pipeline)).
+One environment: **$17.50/month** before bandwidth (D-025). Hobby includes 5 GB of bandwidth, then $0.15/GB. Pipeline minutes for builds and pre-deploy are included up to 500 minutes/month on Hobby, then $5 per 1,000 minutes ([Build Pipeline](https://render.com/docs/build-pipeline)).
 
-Network isolation between environments is a Pro workspace feature ($25/month plus compute) and is left off. On Hobby, private-network addresses in the same account and region can reach each other. Each service's `DATABASE_URL` points only at its own database.
+`numInstances` is omitted. Render uses one instance for a new service ([Blueprint spec](https://render.com/docs/blueprint-spec), `numInstances`). There is no `scaling` block, so this is that default, which is the one instance D-025 asks for. An existing service would keep its current count if this file is synced onto it later; this Blueprint has not been applied.
 
 ## Why the build command installs devDependencies
 
@@ -50,27 +53,24 @@ The pre-deploy command runs after the build finishes and before that build is de
 
 A build of `npm ci && npm run build` with `NODE_ENV=production` fails. That was the negative control in the same rehearsal.
 
-## First apply (staging, and production is created with it)
+## First apply
 
-One apply creates both environments. Fill staging in first and confirm it is healthy before anyone uses production. Production's resources still deploy as part of the same apply.
+One apply creates the `staging` environment only: `amb-staging-web` and `amb-staging-db`. That is the whole deploy. The URL that comes up is for the team only until launch.
 
 1. Merge the pull request that adds `render.yaml`. The Blueprint is read from the GitHub repo, not from a laptop ([Blueprint spec](https://render.com/docs/blueprint-spec)).
 2. In the [Render Dashboard](https://dashboard.render.com), choose **New → Blueprint**.
-3. Connect the GitHub repo `StephenForte/agent-message-board` and the branch `main`. Render should show the project `agent-message-board` and the four resources named above. If it offers to create different names, stop. The names are how `DATABASE_URL` is wired, and several of them cannot be changed after creation (`name`, `region`, `postgresMajorVersion`).
-4. Render prompts for every `sync: false` variable, and only on this first create ([Blueprint spec](https://render.com/docs/blueprint-spec)). Fill all six:
+3. Connect the GitHub repo `StephenForte/agent-message-board` and the branch `main`. Render should show the project `agent-message-board` and the two resources named above. If it offers to create different names, stop. The names are how `DATABASE_URL` is wired, and several of them cannot be changed after creation (`name`, `region`, `postgresMajorVersion`).
+4. Render prompts for every `sync: false` variable, and only on this first create ([Blueprint spec](https://render.com/docs/blueprint-spec)). Fill all three:
 
    | Service | Key | Value |
    | --- | --- | --- |
    | `amb-staging-web` | `APP_BASE_URL` | `https://amb-staging-web.onrender.com` |
-   | `amb-staging-web` | `RESEND_API_KEY` | The staging Resend API key |
-   | `amb-staging-web` | `EMAIL_FROM` | A sender address Resend is allowed to use for staging |
-   | `amb-prod-web` | `APP_BASE_URL` | `https://amb-prod-web.onrender.com` |
-   | `amb-prod-web` | `RESEND_API_KEY` | The production Resend API key |
-   | `amb-prod-web` | `EMAIL_FROM` | A sender address Resend is allowed to use for production |
+   | `amb-staging-web` | `RESEND_API_KEY` | The Resend API key for this service |
+   | `amb-staging-web` | `EMAIL_FROM` | A sender address Resend is allowed to use |
 
-   `APP_BASE_URL` must be `https://` (see `src/env.ts`). Use a distinct Resend key and from-address per environment. `BETTER_AUTH_SECRET` and `CURSOR_HMAC_SECRET` are generated by Render. Leave them generated. Do not paste secrets into the repo, a shell history you keep, or a ticket.
+   `APP_BASE_URL` must be `https://` (see `src/env.ts`). `BETTER_AUTH_SECRET` and `CURSOR_HMAC_SECRET` are generated by Render. Leave them generated. Do not paste secrets into the repo, a shell history you keep, or a ticket.
 
-5. Apply the Blueprint. Render creates the databases, then builds and deploys each web service.
+5. Apply the Blueprint. Render creates the database, then builds and deploys the web service.
 6. Open `amb-staging-web` → **Events** (or the deploy log). A healthy first deploy runs, in order:
    - build: `npm ci --include=dev && npm run build` (pipeline, up to 120 minutes)
    - pre-deploy: `npm run db:migrate` (pipeline, up to 30 minutes)
@@ -98,7 +98,7 @@ Startup exits before listen if the database is unreachable or a required variabl
 
 ## First site admin
 
-Do this on staging first. The command is `npm run admin:grant -- <email>` (D-006). T03 adds the script. The user must already have signed up and verified that email. The script is not a sign-up form.
+Do this on the staging site. The command is `npm run admin:grant -- <email>` (D-006). T03 adds the script. The user must already have signed up and verified that email. The script is not a sign-up form.
 
 1. Open the staging site and create the account with the email you will grant.
 2. Finish email verification. Resend must be working (`RESEND_API_KEY` and `EMAIL_FROM`).
@@ -113,21 +113,30 @@ Do this on staging first. The command is `npm run admin:grant -- <email>` (D-006
 
 5. Sign in again on the staging site and confirm the site-admin path is available. The admin role is a row in `site_admins`. It does not grant read access to board content (D-006).
 
-Repeat for production only after staging is healthy, with the production email and the production service shell. Do not point the production shell at the staging database.
-
-## How production differs
-
-Production is the `prod` environment: `amb-prod-web` and `amb-prod-db`. Same commands, plans, region, Node major, and health check. Different database, different generated secrets, and the three operator values you entered for production.
-
-Give production its own `APP_BASE_URL`, Resend key, and from-address. Rotating or copying staging's `BETTER_AUTH_SECRET` into production ends sessions and is the wrong direction. See [secrets.md](secrets.md).
-
-Auto-deploy is `checksPass` on both services: a commit on the linked branch deploys only after that commit's GitHub checks pass ([Blueprint spec](https://render.com/docs/blueprint-spec)). CI runs on every push (`.github/workflows/ci.yml`). A red `gate` job holds the deploy. `off` would require a manual deploy for every change. `commit` would deploy before CI finishes.
-
 ## Later deploys
 
-Push to `main`. When the `gate` check is green, Render builds, runs `npm run db:migrate`, then starts `npm start`. Migrations are not part of process startup ([database.md](database.md)).
+Push to `main`. When the `gate` check is green, Render builds, runs `npm run db:migrate`, then starts `npm start`. Migrations are not part of process startup ([database.md](database.md)). That deploy updates `staging`, the only environment. The URL stays for the team only until launch.
+
+Auto-deploy is `checksPass`: a commit on the linked branch deploys only after that commit's GitHub checks pass ([Blueprint spec](https://render.com/docs/blueprint-spec)). CI runs on every push (`.github/workflows/ci.yml`). A red `gate` job holds the deploy. `off` would require a manual deploy for every change. `commit` would deploy before CI finishes.
 
 To change a `sync: false` value after the first apply, edit it on the service's **Environment** page and deploy. Adding a new `sync: false` key to `render.yaml` later does not prompt again. Set that key in the Dashboard ([Blueprint spec](https://render.com/docs/blueprint-spec)).
+
+## Adding production later
+
+Do not add a second environment until the operator asks (D-025).
+
+Copy the `staging` environment block in `render.yaml`. Name the copy `prod`, the web service `amb-prod-web`, and the database `amb-prod-db`. Point that service's `DATABASE_URL` `fromDatabase` name at `amb-prod-db`. Keep the build, pre-deploy, and start commands, the health check, the Node and Postgres versions, the plans, the region, `autoDeployTrigger`, and the same env var keys and sources.
+
+These must differ from `staging`:
+
+- Secrets. Leave `BETTER_AUTH_SECRET` and `CURSOR_HMAC_SECRET` as `generateValue: true` on the new service. Do not copy the staging values. See [secrets.md](secrets.md).
+- `RESEND_API_KEY`. Use a different Resend key.
+- `APP_BASE_URL`. Use the new service's `https://` origin.
+- `EMAIL_FROM`. Use a sender Resend allows for that service.
+
+`amb-prod-db` is a new database. It starts empty. The first pre-deploy runs `npm run db:migrate` and creates the schema. Nothing is copied from `amb-staging-db`.
+
+A Hobby workspace allows two environments per project ([pricing](https://render.com/pricing)). Network isolation between environments is a Pro workspace feature ($25/month plus compute). On Hobby, private-network addresses in the same account and region can reach each other, so each service's `DATABASE_URL` must point only at its own database.
 
 ## Custom domains
 
