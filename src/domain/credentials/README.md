@@ -61,3 +61,21 @@ session event kind in the kernel; usage timestamp maintenance emits no event.
 
 `secrets.ts` contains internal random/hash helpers (not adapter entry points).
 Base62 generation rejects bytes 248–255, avoiding modulo bias.
+
+## Owner connection wizard (D-030)
+
+- `setupAgentConnection(owner, { agentName, clientLabel?, token, defaultProjectIds })`
+  registers or case-insensitively reuses the agent, issues a token with the internal
+  issuer, and replaces defaults in one org transaction. Restricted defaults must
+  be in the token allowlist. Validation, audit or event failures roll everything
+  back. New identities audit `agent.register`; token/default actions retain their
+  normal audit and `access.changed` events. Returns the secret only once.
+- `getConnectionDiagnostics(owner, { agentId, tokenId })` returns org/agent metadata,
+  only sessions for that exact agent/token pair, effective projects (archives are
+  read-only), active defaults intersected with access, and creation capability.
+  Revocation/expiry metadata is included. Foreign and absent ids are identical
+  `forbidden_or_not_found`. No secret or hash is accepted or returned.
+
+Both exports reject agents and system principals with `capability_denied`.
+`clientLabel` validates the chosen setup client; the actual session label comes
+from the agent's own `connectAgent` call, never a diagnostic test connection.
