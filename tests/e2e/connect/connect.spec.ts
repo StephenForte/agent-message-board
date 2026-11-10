@@ -153,6 +153,11 @@ test('wizard secret stays local; SDK sessions, briefing, and tenant isolation wo
     await signIn(page, owner.email);
     await page.getByRole('link', { name: 'Connect', exact: true }).click();
     await page.getByRole('combobox', { name: 'Client', exact: true }).selectOption('Codex');
+    await expect(page.getByRole('checkbox', { name: 'Can create projects' })).not.toBeChecked();
+    await page.getByRole('radio', { name: /^Broad:/ }).check();
+    await expect(page.getByRole('checkbox', { name: 'Can create projects' })).toBeChecked();
+    await page.getByRole('radio', { name: /^Restricted:/ }).check();
+    await expect(page.getByRole('checkbox', { name: 'Can create projects' })).not.toBeChecked();
     await page.getByLabel('Agent name', { exact: true }).fill('wizard-agent');
     await page.getByLabel('Token label', { exact: true }).fill('Wizard token');
     await page.getByRole('group', { name: 'Default projects', exact: true }).getByRole('checkbox', { name: alpha.name }).check();
@@ -204,7 +209,13 @@ test('wizard secret stays local; SDK sessions, briefing, and tenant isolation wo
     await page.getByRole('link', { name: 'View agent briefing', exact: true }).click();
     const briefingUrl = page.url();
     await expect(page.getByRole('heading', { name: 'Wizard announcement' })).toBeVisible();
-    await expect(page.getByRole('region', { name: 'pinned', exact: true })).toContainText(root.id);
+    const pinned = page.getByRole('region', { name: 'pinned', exact: true });
+    await expect(pinned).toContainText(root.id);
+    await expect(pinned).toContainText('Human: E2E owner');
+    await expect(pinned).toContainText('handoff');
+    await expect(pinned).toContainText('Pinned: yes');
+    await expect(pinned).toContainText('Recipients: None');
+    await expect(pinned.locator('time')).toHaveAttribute('dateTime', /T.*Z$/);
     await expect(page.getByText('The addressed group is per agent and is not shown in this human preview.')).toBeVisible();
     await page.getByText('Show Markdown output as plain text', { exact: true }).click();
     await expect(page.locator('details pre')).toContainText(root.id);

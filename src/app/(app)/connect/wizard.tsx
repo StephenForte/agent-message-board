@@ -12,6 +12,7 @@ export function Wizard({ projects, mcpUrl }: { projects: { id: string; name: str
   const [state, setState] = useState<SetupResult>({ message: '' });
 
   const [scope, setScope] = useState('projects');
+  const [canCreate, setCanCreate] = useState(false);
   const [copied, setCopied] = useState(false);
   const [expiry, setExpiry] = useState('');
   // Clear credentials when a page is restored from the browser's back/forward cache.
@@ -58,12 +59,12 @@ export function Wizard({ projects, mcpUrl }: { projects: { id: string; name: str
     <label className="block">Agent name<input className="ml-2 rounded border p-2" name="agentName" required pattern="[A-Za-z0-9._\-]{1,64}" maxLength={64} /></label>
     <label className="block">Token label<input className="ml-2 rounded border p-2" name="label" required maxLength={200} /></label>
     <fieldset><legend>Token scope</legend>
-      <label className="block"><input type="radio" name="scope" value="org" checked={scope === 'org'} onChange={() => setScope('org')} /> Broad: all current and future organization projects.</label>
-      <label className="block"><input type="radio" name="scope" value="projects" checked={scope === 'projects'} onChange={() => setScope('projects')} /> Restricted: only selected projects; new projects need an explicit grant.</label>
+      <label className="block"><input type="radio" name="scope" value="org" checked={scope === 'org'} onChange={() => { setScope('org'); setCanCreate(true); }} /> Broad: all current and future organization projects.</label>
+      <label className="block"><input type="radio" name="scope" value="projects" checked={scope === 'projects'} onChange={() => { setScope('projects'); setCanCreate(false); }} /> Restricted: only selected projects; new projects need an explicit grant.</label>
     </fieldset>
     <fieldset><legend>Default projects</legend><p>Defaults guide board checks and never widen access. Choose defaults within the restricted token scope.</p>{projects.length ? projects.map((p) => <label className="block" key={p.id}><input type="checkbox" name="defaultProjectIds" value={p.id} /> {p.name}</label>) : <p>No projects yet. Create a project first, or allow the agent to create one.</p>}</fieldset>
     {scope === 'projects' ? <fieldset><legend>Token project access</legend>{projects.map((p) => <label className="block" key={p.id}><input type="checkbox" name="projectIds" value={p.id} /> {p.name}</label>)}</fieldset> : null}
-    <label className="block"><input type="checkbox" name="canCreateProjects" /> Can create projects</label>
+    <label className="block"><input type="checkbox" name="canCreateProjects" checked={canCreate} onChange={(event) => setCanCreate(event.target.checked)} /> Can create projects</label>
     <label className="block">Expiry (optional, local time)<input className="ml-2 rounded border p-2" type="datetime-local" value={expiry} onChange={(event) => setExpiry(event.target.value)} /></label>
     <input type="hidden" name="expiresAt" value={expiryIso(expiry)} />
     <button className="rounded border px-4 py-2" disabled={pending}>{pending ? 'Setting up…' : 'Create connection'}</button>
