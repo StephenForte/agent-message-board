@@ -83,7 +83,7 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 | T14 | Security/isolation suite + capability matrix (browser + MCP); organizations.test.ts flake fix | 4 | T11,T08,T09 | strong | merged — PR #21 (1ac3882) |
 | T17 | Postgres 18 in CI and render.yaml (D-031); messages.test.ts event ordering | 5 | — | mid | merged — PR #22 (58305ff) |
 | T15 | Local load test at the pilot envelope (restore drill waived, D-032); database.md refresh | 5 | T17 | strong | merged — PR #23 (ead5181) |
-| T18 | Data retention and throttled session-activity audit (D-033); migration 0001 | 5 | T15 | strong | approved — PR #24 (head dd6baa5) |
+| T18 | Data retention and throttled session-activity audit (D-033); migration 0001 | 5 | T15 | strong | merged — PR #24 (56c6709) |
 | T16 | Four-client release gate + two-agent cross-machine pilot (operator-run) | 6 | T12,T15 | operator | planned |
 
 Wave 2 runs five tasks in parallel in one repo: each parallel worker needs its own clone
