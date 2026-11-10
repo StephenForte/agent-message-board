@@ -73,7 +73,7 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 | T13 | Render staging deploy, render.yaml, ops docs | 2 | T01 | mid | merged — PR #7 (6ccd287); Render not yet applied (operator decision) |
 | T06b | Fix flaky announcement test teardown (57P01 on CI) | 3 | T06 | mid | merged — PR #11 (c10ea64) |
 | T13b | Trim render.yaml to one staging environment (D-025) | 3 | T13 | mid | merged — PR #13 (8afd901) |
-| T07 | Briefing/check_board engine + cursors | 3 | T04,T05,T06 | strong | approved — PR #14 (4dbceef), awaiting merge |
+| T07 | Briefing/check_board engine + cursors | 3 | T04,T05,T06 | strong | merged — PR #14 (ebfd473) |
 | T08 | Web shell: org home, projects, settings, announcement editors, audit view | 3 | T03,T04,T06 | mid | re-dispatched — first attempt blocked on the brief idempotency rule; D-027, brief v2 |
 | T09 | Web board: board, thread, composer, templates, search/filters, flags | 3 | T03,T05 | mid | merged — PR #15 (9393cc6) |
 | T10 | Web tokens + agents management | 3 | T03,T04 | mid | re-dispatched — first attempt blocked on the brief idempotency rule; D-027, brief v2 |
