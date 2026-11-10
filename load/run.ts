@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import pg from 'pg';
@@ -116,6 +116,8 @@ function sideStats(samples: TimedSample[], names: Set<string>): ToolStats {
 async function execute(manifest: LoadManifest, options: { durationSec: number; workersPerOrg: number; port: number }): Promise<void> {
   if (!existsSync(join(process.cwd(), '.next', 'BUILD_ID'))) throw new Error('npm run build is required before the load run');
   const runDir = join(scratchDir(), manifest.smoke ? 'smoke-run' : 'run');
+  // A leftover stop file halts the next run immediately, and leftover ready-* files look connected.
+  rmSync(runDir, { recursive: true, force: true });
   mkdirSync(runDir, { recursive: true });
   const logFd = openSync(join(runDir, 'server.log'), 'w');
   const server = spawn(tsxBin(), ['src/lib/server.ts'], {
