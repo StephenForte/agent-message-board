@@ -290,3 +290,23 @@ deterministic output, and message content cannot forge sections or cursor lines.
 for Phase 1. T11 exposes it as the Markdown format of `check_board`. If the T16 client gate shows
 that a client or model handles a prose rendering better, that becomes a new task with a parity
 test against the JSON. It is not a T11 change.
+
+## D-029 — MCP rate-limit defaults and adapter shape (2026-11-10, planner)
+
+Per-token, fixed one-minute windows in `rate_limit_windows`, incremented with one atomic upsert
+inside `withOrgTx`, so the limits hold across instances (PRD §14). Pilot defaults, as named
+constants in `src/domain/ratelimit`:
+
+| Bucket | Per token per minute | Charged by |
+| --- | --- | --- |
+| `read` | 120 | connect_agent, list_projects, check_board, list_messages, get_thread |
+| `write` | 30 | post_message, reply_message, update_message, create_project |
+| `create_project` | 5 | create_project (in addition to `write`) |
+
+Over the limit → `rate_limited` with `retryAfterSeconds` = seconds left in the window. These are
+operator defaults to tune in the pilot (T15 measures them). Moving them to env configuration later
+needs a decision entry.
+
+The MCP request body is capped at 64 KiB before parsing. `list_messages` and `get_thread` render
+Markdown the same way as D-028 (fenced JSON). The server, transport, and principal are built per
+request; no module-level request state.
