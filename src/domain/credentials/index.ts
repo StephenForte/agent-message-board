@@ -188,6 +188,9 @@ export function connectAgent(principal: AgentPrincipal, input: { name: string; c
     return { agent: serializeAgent(seen!), sessionId, capabilities: { canCreateProjects: ctx.canCreateProjects }, defaults: defaults.map((p) => ({ id: p.id, slug: p.slug, name: p.name })) };
   });
 }
+/** `agent.session_seen` is written at most once per session per this interval (D-033). */
+export const SESSION_SEEN_AUDIT_INTERVAL_MS = 15 * 60 * 1000;
+
 export function resolveAgentSession(principal: AgentPrincipal, sessionId: string): Promise<AgentPrincipal> {
   agentOnly(principal);
   // Validate before sending a UUID to PostgreSQL; invalid and foreign handles match.
@@ -196,10 +199,19 @@ export function resolveAgentSession(principal: AgentPrincipal, sessionId: string
     const [session] = await tx.select().from(agentSessions).where(and(eq(agentSessions.id, sessionId), eq(agentSessions.orgId, ctx.orgId), eq(agentSessions.tokenId, principal.tokenId)));
     if (!session) throw new DomainError('unauthenticated');
     const now = new Date();
-    await tx.update(agentSessions).set({ lastSeenAt: now }).where(eq(agentSessions.id, sessionId));
+    const cutoff = new Date(now.getTime() - SESSION_SEEN_AUDIT_INTERVAL_MS);
+    // The conditional update locks the session row. A concurrent call waits, then
+    // rechecks the cutoff, so the window yields one audit row.
+    const [claimed] = await tx.update(agentSessions).set({
+      lastSeenAt: now, lastSeenAuditedAt: now,
+    }).where(and(
+      eq(agentSessions.id, sessionId),
+      sql`(${agentSessions.lastSeenAuditedAt} is null or ${agentSessions.lastSeenAuditedAt} <= ${cutoff})`,
+    )).returning({ id: agentSessions.id });
+    if (!claimed) await tx.update(agentSessions).set({ lastSeenAt: now }).where(eq(agentSessions.id, sessionId));
     await tx.update(agents).set({ lastSeenAt: now, updatedAt: now }).where(eq(agents.id, session.agentId));
     const resolved = { ...principal, agentId: session.agentId, sessionId, projectIds: ctx.projectIds, canCreateProjects: ctx.canCreateProjects };
-    await audit(tx, { ...ctx, principal: resolved }, 'agent.session_seen', 'agent_session', sessionId);
+    if (claimed) await audit(tx, { ...ctx, principal: resolved }, 'agent.session_seen', 'agent_session', sessionId);
     return resolved;
   });
 }

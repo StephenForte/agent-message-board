@@ -1,0 +1,1 @@
+ALTER TABLE "agent_sessions" ADD COLUMN "last_seen_audited_at" timestamp with time zone;

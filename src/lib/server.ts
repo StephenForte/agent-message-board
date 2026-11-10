@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import next from 'next';
 import { loadEnv } from '../env';
 import { checkDatabase } from '../domain/kernel/health';
+import { startRetentionTimer } from '../domain/retention';
 import { closeDb } from '../db/client';
 import { createLogger, requestId, redactRoute } from './log';
 
@@ -38,9 +39,14 @@ async function main() {
       res.end();
     });
   });
-  server.listen(port, '0.0.0.0');
+  let stopRetention: () => void = () => {};
+  server.listen(port, '0.0.0.0', () => {
+    const retention = startRetentionTimer({ log: (severity, fields) => log(severity, fields) });
+    stopRetention = () => retention.stop();
+  });
   for (const signal of ['SIGTERM', 'SIGINT'] as const) {
     process.once(signal, () => {
+      stopRetention();
       server.close(() => { void app.close().finally(() => { void closeDb().finally(() => process.exit(0)); }); });
     });
   }

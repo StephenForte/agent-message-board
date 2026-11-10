@@ -15,6 +15,8 @@ export const agentSessions = pgTable('agent_sessions', {
   clientLabel: text('client_label'),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
   lastSeenAt: timestamp('last_seen_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+  /** Last time an `agent.session_seen` audit row was written for this session (D-033). Null until the first one. */
+  lastSeenAuditedAt: timestamp('last_seen_audited_at', { withTimezone: true, mode: 'date' }),
 }, (table) => [
   primaryKey({ columns: [table.id], name: 'agent_sessions_pkey' }),
   unique('agent_sessions_org_id_id').on(table.orgId, table.id),

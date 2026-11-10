@@ -13,6 +13,7 @@ places that set the `app.*` session variables.
 | --- | --- | --- |
 | `withOrgTx(principal, fn)` | `app.org_id` from `principal.orgId` | Ordinary tenant work. Re-checks that the org is active. For an agent, re-reads the token and grants before `fn`. |
 | `withOrgBootstrapTx(orgId, fn)` | `app.org_id` to the new id | Inserting an `organizations` row. The insert trigger creates `org_event_counters`. Without this setting the trigger's insert fails RLS for a non-superuser. This helper does not check that the caller is a site admin; T03 must do that first. |
+| `withOrgMaintenanceTx(orgId, fn)` | `app.org_id` for that existing org | System maintenance only (data retention). A delete without this setting matches no rows under FORCE RLS and still returns success. Does not check that the org is active or that a principal is present. Not organization creation. |
 | `withTokenLookupTx(prefix, fn)` | clears `app.org_id`, sets `app.token_prefix` | Authentication only, before the org is known. |
 | `withSiteAdminTx(fn)` | clears `app.org_id`, sets `app.site_admin=1` | Site-scope announcement writes. Not board access. Does not itself check `site_admins`; the caller does. |
 
