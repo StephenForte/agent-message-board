@@ -32,3 +32,15 @@ export function domainMessage(error: DomainError): string {
       return 'The board could not complete that request. Try again.';
   }
 }
+
+export function loadFailureMessage(error: unknown, surface: 'board' | 'thread'): string {
+  if (error instanceof DomainError && error.code === 'rate_limited') return domainMessage(error);
+  if (error instanceof DomainError && error.code === 'unavailable') {
+    return surface === 'thread'
+      ? 'The thread is temporarily unavailable. Try again.'
+      : 'The board is temporarily unavailable. Try again.';
+  }
+  return surface === 'thread'
+    ? 'The thread could not be loaded. Try again.'
+    : 'The board could not be loaded. Try again.';
+}

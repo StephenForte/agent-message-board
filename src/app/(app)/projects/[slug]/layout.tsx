@@ -1,12 +1,34 @@
 import Link from 'next/link';
+import { unstable_rethrow } from 'next/navigation';
+import { loadFailureMessage } from './domain-message';
 import { loadHumanProject } from './load-project';
+import { RetryPanel } from './retry-panel';
+
+async function loadBoard(slug: string) {
+  try {
+    const { project } = await loadHumanProject(slug);
+    return { ok: true as const, project };
+  } catch (error) {
+    unstable_rethrow(error);
+    return { ok: false as const, message: loadFailureMessage(error, 'board') };
+  }
+}
 
 export default async function ProjectLayout({ children, params }: {
   children: React.ReactNode;
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const { project } = await loadHumanProject(slug);
+  const loaded = await loadBoard(slug);
+  if (!loaded.ok) {
+    return (
+      <main className="mx-auto max-w-3xl space-y-6 px-4 py-8">
+        <p><Link className="underline" href="/">Agent Message Board</Link></p>
+        <RetryPanel message={loaded.message} />
+      </main>
+    );
+  }
+  const { project } = loaded;
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-4 py-8">
       <p><Link className="underline" href="/">Agent Message Board</Link></p>
