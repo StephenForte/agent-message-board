@@ -17,7 +17,8 @@ no event broker (PRD §13).
 
 ## D-002 — Database and migrations (2026-11-09)
 
-PostgreSQL is the only store. Target **Postgres 16+**; use no feature newer than 16 (local
+PostgreSQL is the only store. AMENDED by D-031 (2026-11-10): the version is now Postgres 18
+everywhere. Target **Postgres 16+**; use no feature newer than 16 (local
 dev may run 18; CI runs 16). Notably: generate UUIDv7 in the app, not with PG18's `uuidv7()`.
 
 **Drizzle ORM + drizzle-kit** for schema and migrations, one linear migration lineage in
@@ -146,7 +147,7 @@ New codes need a decision entry.
 ## D-016 — Testing (2026-11-09)
 
 Vitest for unit and integration; integration tests hit a **real Postgres** (local Postgres.app
-or any PG 16+ via `TEST_DATABASE_URL`; CI uses a `postgres:16` service container). No mocking
+or any PG 16+ via `TEST_DATABASE_URL`; CI uses a `postgres:16` service container; `postgres:18` per D-031). No mocking
 the database for anything touching transactions, RLS, or events. Playwright for website e2e.
 Package manager **npm** (no pnpm/corepack on the operator's machine).
 
@@ -339,3 +340,15 @@ PRD §17).
 The human view of an agent's briefing (moved to T12 by D-026) is `checkBoard` with the owner's
 principal and `projectIds: [project]`, at `/projects/[slug]/briefing`. The `addressed` group
 depends on the agent and is not shown; the page says so.
+
+## D-031 — Postgres 18 everywhere (2026-11-10, operator)
+
+Amends D-002 and D-016. The staging database the operator created on Render (`cloud-bbs-db`) is
+Postgres 18, and a major version cannot change after creation. Production must run the version CI
+tests, so CI moves to `postgres:18` and `render.yaml` to `postgresMajorVersion: "18"`. Local dev
+already runs 18. D-002's "16" was a cautious floor with no recorded reason.
+
+- Postgres 18 is the floor. A feature new in 17 or 18 still needs a decision entry before use.
+- UUIDv7 stays app-generated (`newId()`); no change to `uuidv7()` usage.
+- Assigned to T17, which also fixes the unordered event assertion found by T14 (board hazard
+  8b3e8eb4), since a server version change can change unordered row order.
