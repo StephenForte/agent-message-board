@@ -1,4 +1,4 @@
-# Agent Message Board — staging and production (D-004).
+# Agent Message Board — one environment, staging (D-004 amended by D-025).
 # Apply this file as a Render Blueprint. It does not create resources by itself.
 # No secret values belong in this file. Operator steps: docs/ops/deploy.md.
 #
@@ -70,44 +70,4 @@ projects:
             # Default disk for this plan. Storage is $0.30/GB.
             # https://render.com/docs/blueprint-spec
             # https://render.com/pricing
-            diskSizeGB: 15
-
-      - name: prod
-        services:
-          - type: web
-            name: amb-prod-web
-            runtime: node
-            region: oregon
-            plan: 0.5c-512mb
-            buildCommand: npm ci --include=dev && npm run build
-            preDeployCommand: npm run db:migrate
-            startCommand: npm start
-            healthCheckPath: /api/health
-            autoDeployTrigger: checksPass
-            envVars:
-              - key: NODE_VERSION
-                value: "22"
-              - key: NODE_ENV
-                value: production
-              - key: LOG_LEVEL
-                value: info
-              - key: DATABASE_URL
-                fromDatabase:
-                  name: amb-prod-db
-                  property: connectionString
-              - key: BETTER_AUTH_SECRET
-                generateValue: true
-              - key: CURSOR_HMAC_SECRET
-                generateValue: true
-              - key: APP_BASE_URL
-                sync: false
-              - key: RESEND_API_KEY
-                sync: false
-              - key: EMAIL_FROM
-                sync: false
-        databases:
-          - name: amb-prod-db
-            region: oregon
-            plan: 0.1c-256mb
-            postgresMajorVersion: "16"
             diskSizeGB: 15
