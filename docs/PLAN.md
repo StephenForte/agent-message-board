@@ -75,7 +75,7 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 | T13b | Trim render.yaml to one staging environment (D-025) | 3 | T13 | mid | merged — PR #13 (8afd901) |
 | T07 | Briefing/check_board engine + cursors | 3 | T04,T05,T06 | strong | re-dispatched — first attempt blocked on two impossible brief requirements; brief v2 |
 | T08 | Web shell: org home, projects, settings, announcement editors, audit view | 3 | T03,T04,T06 | mid | re-dispatched — first attempt blocked on the brief idempotency rule; D-027, brief v2 |
-| T09 | Web board: board, thread, composer, templates, search/filters, flags | 3 | T03,T05 | mid | approved — PR #15 (384f20b), awaiting merge |
+| T09 | Web board: board, thread, composer, templates, search/filters, flags | 3 | T03,T05 | mid | merged — PR #15 (9393cc6) |
 | T10 | Web tokens + agents management | 3 | T03,T04 | mid | re-dispatched — first attempt blocked on the brief idempotency rule; D-027, brief v2 |
 | T11 | MCP adapter: 9 tools, errors, rate limits | 4 | T07 | strong | planned |
 | T12 | Connect-an-agent wizard, 4 client snippets, diagnostics | 5 | T10,T11 | mid | planned |
