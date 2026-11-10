@@ -80,7 +80,7 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 | T11 | MCP adapter: 9 tools, errors, rate limits | 4 | T07 | strong | merged — PR #18 (dbfcc05) |
 | T12 | Connect-an-agent wizard, 4 client snippets, diagnostics, human briefing view (D-030) | 4 | T10,T11 | strong | merged — PR #20 (b44c8ef) |
 | T14 | Security/isolation suite + capability matrix (browser + MCP); organizations.test.ts flake fix | 4 | T11,T08,T09 | strong | merged — PR #21 (1ac3882) |
-| T17 | Postgres 18 in CI and render.yaml (D-031); messages.test.ts event ordering | 5 | — | mid | approved — PR #22 (head a2e54a1) |
+| T17 | Postgres 18 in CI and render.yaml (D-031); messages.test.ts event ordering | 5 | — | mid | merged — PR #22 (58305ff) |
 | T15 | Load test at pilot envelope + backup restore drill | 6 | T13,T14 | mid | planned |
 | T16 | Four-client release gate + two-agent cross-machine pilot (operator-run) | 6 | T12,T15 | operator | planned |
 
