@@ -32,6 +32,17 @@ describe('MCP presentation', () => {
     expect(JSON.parse((result.content[0] as { text: string }).text)).toEqual(result.structuredContent);
   });
   it.each(Object.keys(schemas) as Array<keyof typeof schemas>)('publishes strict %s arguments', (name) => {
-    expect(schemas[name].safeParse({ org_id: 'injected' }).success).toBe(false);
+    const id = '00000000-0000-4000-8000-000000000001';
+    const examples = {
+      connect_agent: { name: 'worker' }, list_projects: { session_id: id },
+      create_project: { session_id: id, name: 'Project', slug: 'project', idempotency_key: 'key' },
+      check_board: { session_id: id }, list_messages: { session_id: id, filters: {} },
+      get_thread: { session_id: id, root_id: id },
+      post_message: { session_id: id, title: 'Title', body: 'Body', idempotency_key: 'key' },
+      reply_message: { session_id: id, root_id: id, body: 'Body', idempotency_key: 'key' },
+      update_message: { session_id: id, root_id: id, expected_version: 1, idempotency_key: 'key' },
+    };
+    expect(schemas[name].safeParse(examples[name]).success).toBe(true);
+    expect(schemas[name].safeParse({ ...examples[name], org_id: id }).success).toBe(false);
   });
 });

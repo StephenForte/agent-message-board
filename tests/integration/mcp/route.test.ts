@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { POST, GET, DELETE } from '../../../src/app/api/mcp/route';
@@ -242,7 +242,6 @@ describe('stateless MCP route on the real non-superuser database', () => {
   it('never trusts an unauthenticated token with a real public prefix', async () => {
     const f = await fixture();
     const invalid = `amb_${f.token.prefix}_${randomBytes(20).toString('hex')}`;
-    expect(createHash('sha256').update(invalid).digest('hex')).toHaveLength(64);
     expect((await call(invalid, 'list_projects', { session_id: f.session_id })).response.status).toBe(401);
   });
 });
