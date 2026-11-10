@@ -352,3 +352,11 @@ already runs 18. D-002's "16" was a cautious floor with no recorded reason.
 - UUIDv7 stays app-generated (`newId()`); no change to `uuidv7()` usage.
 - Assigned to T17, which also fixes the unordered event assertion found by T14 (board hazard
   8b3e8eb4), since a server version change can change unordered row order.
+
+## D-032 — No restore drill before launch (2026-11-10, operator)
+
+Waives PRD §14 "a demonstrated restore before launch" and the backup-restore part of §15.13. The
+operator has restored Render Postgres many times on other projects and accepts Render's managed
+daily backups as sufficient for Phase 1. T15 no longer includes a restore drill. Recovery targets
+in PRD §14 (24 hours of data loss, one business day to recover) remain the stated expectation.
+Revisit before inviting users outside the operator's team.
