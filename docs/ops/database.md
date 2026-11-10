@@ -1,10 +1,12 @@
 # Database
 
-The database is `amb-staging-db`, the only one (D-025). It is Render Postgres, major version **18**, region `oregon`, plan `0.1c-256mb`. Postgres 18 is the floor: CI tests `postgres:18` and `render.yaml` pins `postgresMajorVersion: "18"`, because production must run the version CI tests (D-031, amending D-002). A feature new in 17 or 18 still needs a decision before use. The major version cannot be changed after creation ([Blueprint spec](https://render.com/docs/blueprint-spec), [Create and Connect](https://render.com/docs/postgresql-creating-connecting)).
+The live web service is `Cloud BBS`. The live database is `cloud-bbs-db`. Both were created in the Render Dashboard, not applied from `render.yaml`. `render.yaml` is the source for what the next managed database should look like; it is not how these two resources were created.
 
-The operator's live resources were created by hand as `Cloud BBS` and `cloud-bbs-db`, not from the Blueprint, so their settings are configured in the dashboard.
+The database is Render Postgres, major version **18**, region `oregon`, plan `0.1c-256mb`. Postgres 18 is the floor: CI tests `postgres:18` and `render.yaml` pins `postgresMajorVersion: "18"`, because production must run the version CI tests (D-031, amending D-002). A feature new in 17 or 18 still needs a decision before use. The major version cannot be changed after creation ([Blueprint spec](https://render.com/docs/blueprint-spec), [Create and Connect](https://render.com/docs/postgresql-creating-connecting)).
 
-The app's `DATABASE_URL` is the database's **internal** connection string (`fromDatabase` / `connectionString`). That URL is the private-network URL, hostname included ([Blueprint spec](https://render.com/docs/blueprint-spec)). The web service and the database are in the same region, which is required for the internal URL ([Create and Connect](https://render.com/docs/postgresql-creating-connecting)).
+The app's `DATABASE_URL` is the database's **internal** connection string. That URL is the private-network URL, hostname included ([Blueprint spec](https://render.com/docs/blueprint-spec)). The web service and the database are in the same region, which is required for the internal URL ([Create and Connect](https://render.com/docs/postgresql-creating-connecting)).
+
+The operator reaches `cloud-bbs-db` only from the **Cloud BBS** Render Shell. The laptop does not open a connection to the database. `DATABASE_URL` is already in that shell's environment. It is a secret (D-009). Do not copy it into the repo, a ticket, or a log.
 
 ## Migrations
 
@@ -22,49 +24,33 @@ There is no down migration. `package.json` has no rollback script. A bad migrati
 
 `drizzle-kit` is a devDependency. The build command installs devDependencies on purpose so this command can see it. See [deploy.md](deploy.md).
 
-## Connect from a laptop
+## Staging check
 
-Use the **external** URL. It is on the database's page in the Dashboard, under **Connect**. The shape is:
-
-```text
-postgresql://USER:PASSWORD@EXTERNAL_HOST:PORT/DATABASE
-```
-
-External connections are TLS. Render rejects `sslmode=disable`. Add `sslmode=require` ([Create and Connect](https://render.com/docs/postgresql-creating-connecting)):
+Run this in the Cloud BBS Shell. It uses the service's `DATABASE_URL` and does not print that URL.
 
 ```shell
-psql "postgresql://USER:PASSWORD@EXTERNAL_HOST:PORT/DATABASE?sslmode=require"
+node -e 'const {Client}=require("pg");(async()=>{const c=new Client({connectionString:process.env.DATABASE_URL});await c.connect();const q=async(s)=>(await c.query(s)).rows[0];console.log("server_version:",(await q("show server_version")).server_version);const r=await q("select rolsuper, rolbypassrls from pg_roles where rolname=current_user");console.log("superuser:",r.rolsuper,"| bypassrls:",r.rolbypassrls);console.log("public tables:",(await q("select count(*)::int n from pg_tables where schemaname=\x27public\x27")).n);console.log("rls without force:",(await q("select count(*)::int n from pg_class where relrowsecurity and not relforcerowsecurity and relnamespace=\x27public\x27::regnamespace")).n);try{await c.query("create role amb_runtime_probe nologin nosuperuser nobypassrls");await c.query("drop role amb_runtime_probe");console.log("create role: allowed (probe created and dropped)")}catch(e){console.log("create role: not allowed ("+e.code+")")}await c.end()})().catch((e)=>{console.error("check failed:",e.code||"no code");process.exit(1)})'
 ```
 
-The Dashboard also offers a **PSQL Command** that is the same connection. The client must support TLS 1.2 or newer.
+Expected on staging, recorded 2026-11-10:
 
-The external URL is a secret (it contains the password). Do not put it in the repo, a ticket, or a log (D-009). Prefer the internal URL from any Render service in `oregon` on the same account. Internal TLS is optional and the certificate is self-signed, so `verify-full` is not supported. The app uses the internal URL as Render generates it, without an `sslmode` parameter ([Create and Connect](https://render.com/docs/postgresql-creating-connecting)).
+```text
+server_version: 18.x
+superuser: false | bypassrls: false
+public tables: 23
+rls without force: 0
+create role: allowed (probe created and dropped)
+```
 
-`ipAllowList` is omitted, so a new database allows every source address and still requires the password ([Blueprint spec](https://render.com/docs/blueprint-spec)). Tighten that list in the Dashboard when the operator's IPs are known.
+`create role:` may instead be `create role: not allowed (<sqlstate>)`. Either answer is a recorded result. `18.x` means a Postgres 18 minor. `superuser` and `bypassrls` must both be false.
+
+If either flag is true, stop. The app is not safe to serve traffic on that database. Do not grant `SUPERUSER` or `BYPASSRLS` to fix a query.
 
 ## The role the app uses (D-020)
 
 `DATABASE_URL` is the Render-managed default user for that database. The same variable is present for pre-deploy and for `npm start`, so migrations and the running app connect as that user.
 
-The role must not be a superuser and must not have `BYPASSRLS`. Both skip row-level security unconditionally (D-020). Render's docs say the platform does not provide superuser access ([Repacking Postgres Tables](https://render.com/docs/postgresql-pg-repack)). They do not publish `rolbypassrls` for the default user. Confirm both flags on staging, connected as the app's user (the external URL above):
-
-```sql
-SELECT rolsuper, rolbypassrls
-FROM pg_roles
-WHERE rolname = current_user;
-```
-
-Expected:
-
-```text
- rolsuper | rolbypassrls
-----------+--------------
- f        | f
-```
-
-`psql -Atc` prints that as `f|f`.
-
-If either column is `t`, stop. The app is not safe to serve traffic on that database. Do not grant `SUPERUSER` or `BYPASSRLS` to fix a query.
+The role must not be a superuser and must not have `BYPASSRLS`. Both skip row-level security unconditionally (D-020). Render's docs say the platform does not provide superuser access ([Repacking Postgres Tables](https://render.com/docs/postgresql-pg-repack)). The staging check above is how that is confirmed. `psql` from a laptop is not the path.
 
 ### A separate non-owner role
 
@@ -73,25 +59,11 @@ A separate non-owner runtime role is preferred when the host allows it (D-020). 
 - The platform does not provide superuser ([pg_repack](https://render.com/docs/postgresql-pg-repack)).
 - A user created with `CREATE USER` is not managed by Render. It does not appear in the Dashboard, and creating it does not replace the default user or the Blueprint connection string ([Database Credential Rotations](https://render.com/docs/postgresql-credentials)).
 
-So the docs describe `CREATE ROLE` / `CREATE USER` as available, and they describe it as something that will **not** take over `DATABASE_URL`. Confirm on staging, still as the default user:
+The staging check's `create role` line is the confirmation. The probe role is created and dropped in the same script, or the script reports the SQLSTATE when `CREATE ROLE` is denied. Isolation still holds when the role cannot be created, for the reason in the next section.
 
-```sql
-CREATE ROLE amb_runtime_probe NOLOGIN NOSUPERUSER NOBYPASSRLS;
-```
+Do not use **New default credential** in the Dashboard as the runtime role. That user becomes the default user, and a Blueprint `DATABASE_URL` switches to it on the next sync ([Database Credential Rotations](https://render.com/docs/postgresql-credentials)). Migrations would then run as that new user.
 
-Expected: `CREATE ROLE`. Then remove the probe:
-
-```sql
-DROP ROLE amb_runtime_probe;
-```
-
-Expected: `DROP ROLE`.
-
-If `CREATE ROLE` returns permission denied, a separate role is not available on this database. Record the error. Isolation still holds, for the reason in the next section.
-
-Do not use **New default credential** in the Dashboard as the runtime role. That user becomes the default user, and the Blueprint's `DATABASE_URL` switches to it on the next sync ([Database Credential Rotations](https://render.com/docs/postgresql-credentials)). Migrations would then run as that new user.
-
-This service has one `DATABASE_URL`. Pre-deploy and the web process share it. Pointing only the web process at a non-owner role, while migrating as the owner, needs an application change. That change is outside this Blueprint. Until it exists, the app connects as the owner, and the check above is the one that matters.
+This service has one `DATABASE_URL`. Pre-deploy and the web process share it. Pointing only the web process at a non-owner role, while migrating as the owner, needs an application change. Until it exists, the app connects as the owner, and the staging check is the one that matters.
 
 ### Isolation either way
 
@@ -107,10 +79,10 @@ WHERE relrowsecurity
   AND relnamespace = 'public'::regnamespace;
 ```
 
-Expected: `0`.
+Expected: `0`. The staging check prints this as `rls without force`.
 
 Tables without row-level security are the ones listed in the kernel README (Better Auth tables, `site_admins`, `organizations`, `owner_activations`). They are outside this count because `relrowsecurity` is false. They are not tenant message data.
 
 ## Storage
 
-The database is created with a 15 GB disk. You can raise storage later. You cannot shrink it ([Create and Connect](https://render.com/docs/postgresql-creating-connecting)). Storage autoscaling is left off so a full disk does not silently buy more disk. A database that runs out of storage is suspended. Add storage from the database's Plan page, then resume it. After an increase you cannot increase it again for 6 hours. Details are in that same document.
+The database disk is **10 GB**. You can raise storage later. You cannot shrink it ([Create and Connect](https://render.com/docs/postgresql-creating-connecting)). Storage autoscaling is left off so a full disk does not silently buy more disk. A database that runs out of storage is suspended. Add storage from the database's Plan page, then resume it. After an increase you cannot increase it again for 6 hours. Details are in that same document.
