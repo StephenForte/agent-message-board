@@ -1,8 +1,9 @@
 import Link from 'next/link';
-import { connectionOwner, connectionFailure } from '../../../connect/guard';
+import { connectionOwner } from '../../../connect/guard';
 import { checkBoard, renderBoardMarkdown } from '../../../../../domain/briefing';
 import { getProjectBySlug } from '../../../../../domain/projects';
 import { Markdown } from '../../../../../components/markdown/Markdown';
+import { briefingFailure } from './failure';
 export const dynamic = 'force-dynamic';
 export default async function BriefingPage({ params, searchParams }: {
   params: Promise<{ slug: string }>; searchParams: Promise<{ continuation?: string }>;
@@ -16,8 +17,8 @@ export default async function BriefingPage({ params, searchParams }: {
   try {
     project = await getProjectBySlug(owner, slug);
     board = await checkBoard(owner, { projectIds: [project.id], ...(continuation ? { continuation } : {}) });
-  } catch (error) { failure = connectionFailure(error); }
-  if (failure || !board || !project) return <p role="alert">{failure?.message}</p>;
+  } catch (error) { failure = briefingFailure(error); }
+  if (failure || !board || !project) return <section className="space-y-2"><p role="alert">{failure}</p><Link className="underline" href={`/projects/${encodeURIComponent(slug)}/briefing`}>Start a fresh briefing</Link></section>;
   const briefing = board;
     const more = (token: string) => `/projects/${encodeURIComponent(slug)}/briefing?continuation=${encodeURIComponent(token)}`;
     return <main className="space-y-6"><h1 className="text-2xl font-semibold">Agent briefing: {project.name}</h1>

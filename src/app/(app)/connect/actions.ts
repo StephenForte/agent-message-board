@@ -13,7 +13,7 @@ export async function setupConnection(data: FormData): Promise<SetupResult> {
     const result = await setupAgentConnection(owner, { agentName: String(data.get('agentName') ?? ''), clientLabel: client,
       defaultProjectIds: data.getAll('defaultProjectIds').map(String), token: { label: String(data.get('label') ?? ''), scope,
         ...(scope === 'projects' ? { projectIds: data.getAll('projectIds').map(String) } : {}),
-        canCreateProjects: data.get('canCreateProjects') === 'on', expiresAt: expiry ? `${expiry}Z` : null } });
+        canCreateProjects: data.get('canCreateProjects') === 'on', expiresAt: expiry || null } });
     return { message: '', secret: result.secret, agentId: result.agent.id, tokenId: result.token.id, agentName: result.agent.name, client };
   } catch (error) { return connectionFailure(error); }
 }

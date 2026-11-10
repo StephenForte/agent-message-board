@@ -3,16 +3,24 @@ import Link from 'next/link';
 import { useActionState, useEffect, useState } from 'react';
 import { setupConnection, type SetupResult } from './actions';
 import { clients, clientSetup, consulted } from './snippets';
+function expiryIso(value: string) {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString();
+}
 export function Wizard({ projects, mcpUrl }: { projects: { id: string; name: string }[]; mcpUrl: string }) {
   const [state, setState] = useState<SetupResult>({ message: '' });
 
   const [scope, setScope] = useState('projects');
   const [copied, setCopied] = useState(false);
+  const [expiry, setExpiry] = useState('');
   // Clear credentials when a page is restored from the browser's back/forward cache.
   useEffect(() => {
     const clear = () => setState({ message: '' });
     const leaving = (event: MouseEvent) => {
-      if (event.target instanceof Element && event.target.closest('a[href]')) clear();
+      if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      const anchor = event.target instanceof Element ? event.target.closest('a[href]') : null;
+      if (anchor instanceof HTMLAnchorElement && (!anchor.target || anchor.target === '_self') && anchor.href !== window.location.href) clear();
     };
     window.addEventListener('pagehide', clear);
     window.addEventListener('pageshow', clear);
@@ -42,7 +50,7 @@ export function Wizard({ projects, mcpUrl }: { projects: { id: string; name: str
       <h2 className="text-xl font-semibold">Instructions for {setup.rule}</h2>
       <pre className="whitespace-pre-wrap rounded border p-3">{setup.namedInstructions}</pre>
       <p><a className="underline" href={setup.source} target="_blank" rel="noreferrer">Official client documentation</a> · consulted {consulted} · real-client setup untested until T16.</p>
-      <Link className="underline" href={`/connect/${state.agentId}/${state.tokenId}`} onClick={() => setState({ message: '' })}>Open connection diagnostics</Link>
+      <Link className="underline" href={`/connect/${state.agentId}/${state.tokenId}`}>Open connection diagnostics</Link>
     </section>;
   }
   return <form action={submit} className="space-y-4">
@@ -56,7 +64,8 @@ export function Wizard({ projects, mcpUrl }: { projects: { id: string; name: str
     <fieldset><legend>Default projects</legend><p>Defaults guide board checks and never widen access. Choose defaults within the restricted token scope.</p>{projects.length ? projects.map((p) => <label className="block" key={p.id}><input type="checkbox" name="defaultProjectIds" value={p.id} /> {p.name}</label>) : <p>No projects yet. Create a project first, or allow the agent to create one.</p>}</fieldset>
     {scope === 'projects' ? <fieldset><legend>Token project access</legend>{projects.map((p) => <label className="block" key={p.id}><input type="checkbox" name="projectIds" value={p.id} /> {p.name}</label>)}</fieldset> : null}
     <label className="block"><input type="checkbox" name="canCreateProjects" /> Can create projects</label>
-    <label className="block">Expiry (optional, UTC)<input className="ml-2 rounded border p-2" type="datetime-local" name="expiresAt" /></label>
+    <label className="block">Expiry (optional, local time)<input className="ml-2 rounded border p-2" type="datetime-local" value={expiry} onChange={(event) => setExpiry(event.target.value)} /></label>
+    <input type="hidden" name="expiresAt" value={expiryIso(expiry)} />
     <button className="rounded border px-4 py-2" disabled={pending}>{pending ? 'Setting up…' : 'Create connection'}</button>
     {state.message ? <p role="alert">{state.message}</p> : null}
   </form>;

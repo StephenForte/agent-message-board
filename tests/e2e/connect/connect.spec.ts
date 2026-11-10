@@ -96,6 +96,7 @@ async function waitForHttp(url: string, child: ChildProcess) {
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { setOrgAnnouncement } from '../../../src/domain/announcements';
+import { listTokens } from '../../../src/domain/credentials';
 import { postRoot } from '../../../src/domain/messages';
 test('wizard secret stays local; SDK sessions, briefing, and tenant isolation work', async ({ browser }, info) => {
   test.setTimeout(90_000);
@@ -146,7 +147,7 @@ test('wizard secret stays local; SDK sessions, briefing, and tenant isolation wo
     const alpha = await makeProject(owner, 'Wizard project');
     await setOrgAnnouncement(humanOf(owner), { title: 'Wizard announcement', body: 'Read this organization guidance.', expectedVersion: 0 });
     const root = await postRoot(humanOf(owner), { projectId: alpha.id, title: 'Pinned wizard handoff', body: 'Verified briefing context.', category: 'handoff', pinned: true, idempotencyKey: newId() });
-    const context = await browser.newContext({ ignoreHTTPSErrors: true, baseURL: `https://127.0.0.1:${httpsPort}`, extraHTTPHeaders: { 'x-forwarded-for': '203.0.114.12' } });
+    const context = await browser.newContext({ timezoneId: 'America/Los_Angeles', ignoreHTTPSErrors: true, baseURL: `https://127.0.0.1:${httpsPort}`, extraHTTPHeaders: { 'x-forwarded-for': '203.0.114.12' } });
     page = await context.newPage();
     page.on('request', (request) => urls.push(request.url()));
     await signIn(page, owner.email);
@@ -156,6 +157,7 @@ test('wizard secret stays local; SDK sessions, briefing, and tenant isolation wo
     await page.getByLabel('Token label', { exact: true }).fill('Wizard token');
     await page.getByRole('group', { name: 'Default projects', exact: true }).getByRole('checkbox', { name: alpha.name }).check();
     await page.getByRole('group', { name: 'Token project access' }).getByRole('checkbox', { name: alpha.name }).check();
+    await page.getByLabel('Expiry (optional, local time)').fill('2030-06-01T09:30');
     let release = () => {};
     const gate = new Promise<void>((resolve) => { release = resolve; });
     await page.route((url) => url.pathname === '/connect', async (route) => { if (route.request().method() === 'POST') await gate; await route.continue(); });
@@ -166,6 +168,15 @@ test('wizard secret stays local; SDK sessions, briefing, and tenant isolation wo
     await expect(field).toBeVisible();
     const secret = await field.inputValue();
     expect(/^amb_[0-9A-Za-z]{8}_[0-9A-Za-z]{40}$/.test(secret)).toBe(true);
+    const token = (await listTokens(humanOf(owner))).find((t) => t.label === 'Wizard token');
+    expect(token?.expiresAt).toBe('2030-06-01T16:30:00.000Z');
+    // Opening reference documentation leaves this tab and its one-time setup intact.
+    await context.route('https://learn.chatgpt.com/**', (route) => route.fulfill({ body: 'Official docs test fixture', contentType: 'text/html' }));
+    const popupPromise = context.waitForEvent('page');
+    await page.getByRole('link', { name: 'Official client documentation' }).click();
+    const popup = await popupPromise;
+    await popup.close();
+    expect((await field.inputValue()) === secret).toBe(true);
     const diagnostics = await page.getByRole('link', { name: 'Open connection diagnostics' }).getAttribute('href');
     expect(diagnostics).toMatch(/^\/connect\/[a-f0-9-]+\/[a-f0-9-]+$/);
     // Snippets contain only env references, even while the secret is visible.
@@ -197,6 +208,11 @@ test('wizard secret stays local; SDK sessions, briefing, and tenant isolation wo
     await expect(page.getByText('The addressed group is per agent and is not shown in this human preview.')).toBeVisible();
     await page.getByText('Show Markdown output as plain text', { exact: true }).click();
     await expect(page.locator('details pre')).toContainText(root.id);
+    await page.goto(`${briefingUrl}?continuation=invalid`);
+    await expect(page.getByRole('alert').filter({ hasText: 'This briefing continuation' })).toContainText('Start a fresh briefing below to resync');
+    await page.getByRole('link', { name: 'Start a fresh briefing' }).click();
+    await expect(page).toHaveURL(briefingUrl);
+    await expect(page.getByRole('heading', { name: 'Wizard announcement' })).toBeVisible();
     const stored = await page.evaluate(() => document.cookie + JSON.stringify(sessionStorage) + JSON.stringify(localStorage));
     expect(stored.includes(secret)).toBe(false);
     expect(urls.some((url) => url.includes(secret))).toBe(false);
