@@ -24,6 +24,9 @@ Addressed means a recipient on a root or any reply, not unread/unresolved.
 
 The kernel rechecks org, token, session and grants. Scope bindings include org,
 actor (token/user), agent identity, sorted selected project IDs and current grants.
+Continuation tokens also retain their originating feed sequence. A continuation-only
+request reads events from that position; an explicit cursor may advance it. Thus
+new commits during snapshot pagination cannot be silently consumed by a new W.
 Session IDs are deliberately not a shared read watermark: two sessions of the same
 agent may independently use the same cursor. Bodies, counts and continuation
 payloads never include hidden projects. An `access.changed` event triggers resync

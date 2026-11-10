@@ -361,3 +361,18 @@ test('events committed after W are discarded from this page and delivered on the
   const next = await check(seed, { cursor: result.nextCursor });
   expect(next.events.map((e) => e.seq)).toEqual([2]);
 });
+
+
+test('continuation-only pagination retains the originating feed position instead of skipping new events', async () => {
+  const seed = await fixture('continuation-events');
+  await roots(seed, 3, { urgent: true });
+  await announcement(seed, 'org', 'a'.repeat(16384));
+  const initial = await check(seed, { limit: 1 });
+  await event(seed);
+  for (const continuation of [initial.groups.urgent.continuation!, initial.announcements.org!.continuation!]) {
+    const continued = await check(seed, { continuation, limit: 1 });
+    expect(continued.events.map((e) => e.seq)).toEqual([1]);
+    const next = await check(seed, { cursor: continued.nextCursor });
+    expect(next.events).toEqual([]);
+  }
+});

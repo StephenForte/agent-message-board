@@ -24,8 +24,8 @@ const schema = z.object({
 export type CheckBoardInput = z.input<typeof schema>;
 type Preview = Awaited<ReturnType<typeof listThreadsInTx>>['items'][number];
 type Position = { cursor?: string; skip: number };
-type GroupContinuation = { type: 'group'; group: GroupName; positions: Position[] };
-type AnnouncementContinuation = { type: 'announcement'; scope: 'site' | 'org'; id: string; version: number; offset: number };
+type GroupContinuation = { seq: number; type: 'group'; group: GroupName; positions: Position[] };
+type AnnouncementContinuation = { seq: number; type: 'announcement'; scope: 'site' | 'org'; id: string; version: number; offset: number };
 type Continuation = GroupContinuation | AnnouncementContinuation;
 export type BoardItem = Omit<Preview, 'matches' | 'matchesTruncated'> & {
   threadId: string; sourceMessageId: string; project: { id: string; slug: string; name: string };
@@ -47,8 +47,8 @@ function parseContinuation(token: string | undefined, binding: Binding): Continu
   const value = verify(token, binding);
   const position = z.object({ cursor: z.string().max(8192).optional(), skip: z.number().int().min(0).max(100) }).strict();
   const parsed = z.discriminatedUnion('type', [
-    z.object({ type: z.literal('group'), group: z.enum(groupNames), positions: z.array(position).min(1).max(3) }),
-    z.object({ type: z.literal('announcement'), scope: z.enum(['site', 'org']), id: z.uuid(), version: z.number().int().min(1), offset: z.number().int().min(0) }),
+    z.object({ seq: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER), type: z.literal('group'), group: z.enum(groupNames), positions: z.array(position).min(1).max(3) }),
+    z.object({ seq: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER), type: z.literal('announcement'), scope: z.enum(['site', 'org']), id: z.uuid(), version: z.number().int().min(1), offset: z.number().int().min(0) }),
   ]).safeParse(value);
   if (!parsed.success) throw invalidCursor(RESYNC);
   return parsed.data;
@@ -100,9 +100,12 @@ export async function checkBoardInTx(tx: DbTx, ctx: TxContext, input: CheckBoard
     scope_hash: hash({ actor: p.kind === 'agent' ? p.tokenId : p.userId, agent: p.kind === 'agent' ? p.agentId : null,
       projects: projectIds, grants: ctx.projectIds === 'all' ? 'all' : [...ctx.projectIds].sort() }),
     filter_hash: hash({ view: data.view }) };
-  const after = data.cursor === undefined ? undefined : sequence(data.cursor, binding);
-  if (after !== undefined && after > watermark) throw invalidCursor(RESYNC);
   const continuation = parseContinuation(data.continuation, binding);
+  // Continuation-only requests retain the originating feed position, rather than
+  // treating every snapshot page as a fresh check that jumps to a newer W.
+  const after = data.cursor === undefined ? continuation?.seq : sequence(data.cursor, binding);
+  if (after !== undefined && after > watermark) throw invalidCursor(RESYNC);
+  const continuationSeq = after ?? watermark;
   let identity: BoardResult['identity'];
   if (p.kind === 'agent') {
     const [agent] = await tx.select({ name: agents.name }).from(agents).where(and(eq(agents.orgId, ctx.orgId), eq(agents.id, p.agentId!)));
@@ -153,7 +156,7 @@ export async function checkBoardInTx(tx: DbTx, ctx: TxContext, input: CheckBoard
     const end = offset + Buffer.byteLength(body);
     const truncated = end < Buffer.byteLength(row.body);
     outputAnnouncements[scope] = { ...row, updatedAt: row.updatedAt.toISOString(), body, bodyOffset: offset, bodyBytes: Buffer.byteLength(row.body), truncated,
-      continuation: truncated ? sign(binding, { type: 'announcement', scope, id: row.id, version: row.version, offset: end }) : null };
+      continuation: truncated ? sign(binding, { seq: continuationSeq, type: 'announcement', scope, id: row.id, version: row.version, offset: end }) : null };
   }
   if (continuation?.type === 'announcement') announcement(continuation.scope);
   const priority = continuation?.type === 'group' ? continuation.group : data.view === 'addressed' ? 'addressed' : 'urgent';
@@ -195,7 +198,7 @@ export async function checkBoardInTx(tx: DbTx, ctx: TxContext, input: CheckBoard
     const truncated = sources.some(({ page, position }, index) => position.skip + consumed[index]! < page.items.length || page.nextCursor !== null);
     const count = sources.reduce((sum, { page }) => sum + page.totalCount, 0);
     groups[group] = { none: count === 0, count, returned: ids.length, truncated, threadIds: ids,
-      continuation: truncated ? sign(binding, { type: 'group', group, positions }) : null };
+      continuation: truncated ? sign(binding, { seq: continuationSeq, type: 'group', group, positions }) : null };
   }
   for (const scope of ['site', 'org'] as const) if (!(scope in outputAnnouncements)) announcement(scope);
   const rawEvents = after === undefined ? [] : (await readEventsAfter(tx, ctx.orgId, after, data.limit)).filter((event) => event.seq <= watermark);
