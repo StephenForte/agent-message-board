@@ -49,6 +49,7 @@ async function BoardContents({ params, searchParams }: {
   const cleared: BoardFilters = { ...filters, cursor: undefined };
   return (
     <div id="board-content" className="space-y-8">
+      <a className="underline" href={`${projectPath(slug)}/briefing`}>View agent briefing</a>
       <Filters slug={slug} filters={filters} agents={agents} />
       {project.status === 'active' ? <RootComposer slug={slug} idempotencyKey={randomUUID()} agents={agents} /> : null}
       {urgent ? (
