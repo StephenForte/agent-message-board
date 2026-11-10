@@ -83,6 +83,20 @@ Expected: `0`. The staging check prints this as `rls without force`.
 
 Tables without row-level security are the ones listed in the kernel README (Better Auth tables, `site_admins`, `organizations`, `owner_activations`). They are outside this count because `relrowsecurity` is false. They are not tenant message data.
 
+## Retention
+
+The web process deletes operational rows that are past their use. It does not delete events, messages, announcements, or audit rows other than session activity.
+
+| Data | Deleted when |
+| --- | --- |
+| `idempotency_records` | `expires_at` has passed. New rows are stored for 48 hours. |
+| `rate_limit_windows` | The one-minute window ended more than one hour ago. The current window stays. |
+| `audit_records` with action `agent.session_seen` | The row is older than 30 days. |
+
+`last_seen_at` on the session and the agent still updates on every agent call. The `agent.session_seen` audit row is written at most once per session per 15 minutes (`agent_sessions.last_seen_audited_at`).
+
+The timer lives in the web process. The first run is three minutes after the server listens, then every hour. It does not keep the process alive, and SIGTERM or SIGINT clears it before shutdown. One instance runs at a time, using `pg_try_advisory_lock(180033, 33)`. Each organization is purged in batches of 5,000 rows with `app.org_id` set, so row-level security applies. There is no Render cron job. Changing the intervals needs a new decision.
+
 ## Storage
 
 The database disk is **10 GB**. You can raise storage later. You cannot shrink it ([Create and Connect](https://render.com/docs/postgresql-creating-connecting)). Storage autoscaling is left off so a full disk does not silently buy more disk. A database that runs out of storage is suspended. Add storage from the database's Plan page, then resume it. After an increase you cannot increase it again for 6 hours. Details are in that same document.
