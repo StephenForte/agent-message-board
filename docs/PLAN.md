@@ -71,10 +71,12 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 | T05 | Messages domain (threads, flags, lifecycle, search) | 2 | T02 | strong | merged — PR #6 (dc21886) |
 | T06 | Announcements domain | 2 | T02 | mid | merged — PR #8 (ada7557) |
 | T13 | Render staging deploy, render.yaml, ops docs | 2 | T01 | mid | merged — PR #7 (6ccd287); Render not yet applied (operator decision) |
-| T07 | Briefing/check_board engine + cursors | 3 | T04,T05,T06 | strong | planned |
-| T08 | Web shell: org home, projects, settings, announcement editors, audit view | 3 | T03,T04,T06 | mid | planned |
-| T09 | Web board: board, thread, composer, templates, search/filters, flags | 3 | T03,T05 | mid | planned |
-| T10 | Web tokens + agents management | 3 | T03,T04 | mid | planned |
+| T06b | Fix flaky announcement test teardown (57P01 on CI) | 3 | T06 | mid | merged — PR #11 (c10ea64) |
+| T13b | Trim render.yaml to one staging environment (D-025) | 3 | T13 | mid | brief ready — docs/briefs/T13b.md |
+| T07 | Briefing/check_board engine + cursors | 3 | T04,T05,T06 | strong | brief ready — docs/briefs/T07.md |
+| T08 | Web shell: org home, projects, settings, announcement editors, audit view | 3 | T03,T04,T06 | mid | brief ready — docs/briefs/T08.md |
+| T09 | Web board: board, thread, composer, templates, search/filters, flags | 3 | T03,T05 | mid | brief ready — docs/briefs/T09.md |
+| T10 | Web tokens + agents management | 3 | T03,T04 | mid | brief ready — docs/briefs/T10.md |
 | T11 | MCP adapter: 9 tools, errors, rate limits | 4 | T07 | strong | planned |
 | T12 | Connect-an-agent wizard, 4 client snippets, diagnostics | 5 | T10,T11 | mid | planned |
 | T14 | Security/isolation suite + capability matrix (browser + MCP) | 5 | T11,T08,T09 | strong | planned |
@@ -116,7 +118,7 @@ first, so D-019–D-024 and the briefs are on `main`. Wave 1 is serial and runs 
 2. Wave 2 merge order: T02-dependents in any order; **T13 any time after T01**.
    Predicted conflicts: `package.json`/lockfile (every task) — D-017 rule;
    `.env.example` appends (T03, T13) — keep both.
-3. Wave 3: T07 merges independently of web tasks. T08 first among web tasks (owns layout);
+3. Wave 3 (D-026 route map): T07, T08, T09, T10, T13b run in parallel in clones `/Users/stephenforte/amb-<ID>`. Local e2e is serialized by the `/Users/stephenforte/.amb-e2e.lock` directory. Default assignments moved from T08 to T10; the human briefing preview moved to T12. T07 merges independently of web tasks. T08 first among web tasks (owns layout);
    T09/T10 rebase onto it — predicted conflict in nav links only.
 4. T11 after T07. T12/T14 after T11.
 
@@ -131,3 +133,4 @@ first, so D-019–D-024 and the briefs are on `main`. Wave 1 is serial and runs 
 - **T03** (PR #9, head `2df0799`, approved 2026-11-09): planner gate on the head merged with main 8c8bc69. lint, typecheck, build, db:check pass; unit 55/55 (46+9); integration 59/59 (45+14); startup-proof 6/6; e2e 11/11 on local Chromium. Negative controls each turned a named test red: activation without the lock and used_at condition (concurrent consume), site admin trusting the principal claim, activation not bound to the email, and route redaction off (unit plus e2e auth.spec.ts:119). Three Bugbot findings on 81c1234 were real and fixed. Wave-3 contract is in board handoff 483a84c5 (requireHuman/requireAdmin, humanLanding, performAuth). Review: PR #9 comment 6754623145.
 - **T06** (PR #8, head `fcea6bb`, approved 2026-11-09): planner gate on the head merged with main fc12b2d. lint, typecheck, build, db:check pass; unit 58/58 (55+3); integration 67/67 (59+8). Negative controls: removing the site-admin re-check turned 2 tests red; removing the version check turned 2 red. Removing the row lock and unique-violation mapping left the suite green: its allSettled race resolves sequentially. A planner barrier probe (rival insert held uncommitted, call blocked per pg_stat_activity) returned version_conflict on PR code and went red with the mapping removed. Review: PR #8 comment 6754684950.
 - **T13** (PR #7, head `e853044`, approved 2026-11-09): planner Render-shaped rehearsal on the head merged with main ada7557, as a NOSUPERUSER NOBYPASSRLS owner role. Negative control `NODE_ENV=production npm ci && npm run build` exits 1; render.yaml's build exits 0; pre-deploy migrate applies; start with exactly render.yaml's keys gives health 200; f|f; 0 tables with RLS but no FORCE. Every env.ts key on main (including T03's email keys) is present for both environments. Still unproven until a real staging deploy (docs give the checks): pre-deploy sees node_modules, rolsuper/rolbypassrls f|f, CREATE ROLE, HOSTNAME. Cost ≈ $35/mo for both environments, as quoted by the worker and not re-verified. Review: PR #7 comment 6754738679.
+- **T06b** (PR #11, head `a6910f5`, approved 2026-11-10): the CI flake was 4 of 12 runs failing with 57P01 from the announcements fixture's `pool.end()` followed by `DROP … WITH (FORCE)`. The worker's corked-socket reproduction fails with the exact CI error when the old drop is restored, and passes on the fix (wait until pg_stat_activity is empty, then drop without FORCE). Local gate: unit 58, integration 68. CI on a6910f5: 5/5 attempts green plus the pull_request run. Review: PR #11 comment 6756386239. Planner process change: reviews now check the PR's recent CI run history, not only its latest run.
