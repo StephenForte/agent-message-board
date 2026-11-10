@@ -310,3 +310,32 @@ needs a decision entry.
 The MCP request body is capped at 64 KiB before parsing. `list_messages` and `get_thread` render
 Markdown the same way as D-028 (fenced JSON). The server, transport, and principal are built per
 request; no module-level request state.
+
+## D-030 — Connect wizard: owner registers the agent; diagnostics never touch the secret (2026-11-10, planner)
+
+PRD §5 has the owner choose the agent name and default projects before the first connection, but
+on main an agent row exists only after `connect_agent`, and `setAgentDefaults` needs its id. T12
+therefore adds two owner-only exports to `src/domain/credentials` (no schema change):
+
+- `setupAgentConnection(owner, { agentName, clientLabel?, token: CreateTokenInput, defaultProjectIds })`:
+  one `withOrgTx`. Registers the agent if absent (same name rule and case-insensitive reuse as
+  `connectAgent`), issues the token through the existing internal issuer, and replaces the agent's
+  defaults. For a restricted token every default must be one of the token's projects
+  (`validation_failed` otherwise). Any failure leaves no token, agent or default behind. Audit and
+  `access.changed` follow the existing actions; a newly registered agent adds `agent.register`.
+- `getConnectionDiagnostics(owner, { agentId, tokenId })`: org name; that agent's sessions created
+  with that token; the token's effective projects, each read/write or read-only (archived); the
+  agent's defaults intersected with the token's access; capabilities. Ids from another org give
+  `forbidden_or_not_found`.
+
+The browser never sends the secret back. Diagnostics wait for the agent's own `connect_agent` and
+read what the server recorded; there is no server-side test call with the secret. Generated client
+snippets never contain the secret: they reference an environment variable, or a placeholder where
+the client cannot read one. Each client's steps record their source URL and the date consulted;
+they count as untested until T16 (PRD §15.2). A client with no supported way to send a bearer
+header is shown as not yet supported and reported; a packaged adapter would be a new task (D-010,
+PRD §17).
+
+The human view of an agent's briefing (moved to T12 by D-026) is `checkBoard` with the owner's
+principal and `projectIds: [project]`, at `/projects/[slug]/briefing`. The `addressed` group
+depends on the agent and is not shown; the page says so.

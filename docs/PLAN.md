@@ -53,7 +53,7 @@ src/
 drizzle/                    T02 (0000); later numbers assigned by planner only (D-002)
 render.yaml, docs/ops/      T13
 docs/clients/               T12
-tests/security/, docs/capability-matrix.md   T14
+tests/{unit,integration,e2e}/security/, docs/capability-matrix.md   T14 (configs only run those three trees)
 load/                       T15
 ```
 
@@ -77,9 +77,9 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 | T08 | Web shell: org home, projects, settings, announcement editors, audit view | 3 | T03,T04,T06 | mid | merged — PR #17 (573f752) |
 | T09 | Web board: board, thread, composer, templates, search/filters, flags | 3 | T03,T05 | mid | merged — PR #15 (9393cc6) |
 | T10 | Web tokens + agents management | 3 | T03,T04 | mid | merged — PR #16 (fec5d08) |
-| T11 | MCP adapter: 9 tools, errors, rate limits | 4 | T07 | strong | brief ready — docs/briefs/T11.md (PR #12) |
-| T12 | Connect-an-agent wizard, 4 client snippets, diagnostics | 5 | T10,T11 | mid | planned |
-| T14 | Security/isolation suite + capability matrix (browser + MCP) | 5 | T11,T08,T09 | strong | planned |
+| T11 | MCP adapter: 9 tools, errors, rate limits | 4 | T07 | strong | merged — PR #18 (dbfcc05) |
+| T12 | Connect-an-agent wizard, 4 client snippets, diagnostics, human briefing view (D-030) | 4 | T10,T11 | strong | merged — PR #20 (b44c8ef) |
+| T14 | Security/isolation suite + capability matrix (browser + MCP); organizations.test.ts flake fix | 4 | T11,T08,T09 | strong | merged — PR #21 (1ac3882) |
 | T15 | Load test at pilot envelope + backup restore drill | 6 | T13,T14 | mid | planned |
 | T16 | Four-client release gate + two-agent cross-machine pilot (operator-run) | 6 | T12,T15 | operator | planned |
 
@@ -106,9 +106,13 @@ first, so D-019–D-024 and the briefs are on `main`. Wave 1 is serial and runs 
 - **T05** — Concurrent archive vs reply must serialize: no reply lands in an archived thread
   (PRD §10). Flag changes need `expected_version`. Bodies immutable. FTS over roots + replies.
 - **Wave-3 note from T04 review** — `resolveAgentSession` writes an `agent.session_seen` audit row and updates `last_seen_at` on every agent call. T08's audit view must filter or group session-seen rows so real changes stay visible; T15 measures audit growth at the pilot envelope.
+- **T14 note from T11 review** — add a response-body assertion that MCP errors from non-domain failures never contain internal text (T11's test checks the code and the logs, not the response; a planner probe proved the behaviour is correct).
+- **Wave-4 notes** — T12 became strong: D-030 adds owner-only `setupAgentConnection` and `getConnectionDiagnostics` (tenant boundary on guessed ids). Its model in this table was mid. T14 owns the fix for the flaky `tests/integration/auth/organizations.test.ts:142` (unordered audit query; failed on plan/wave-4 push run 42756740582, main CI on dbfcc05 green). Defects T14 finds are committed as expected-to-fail tests and become planner-dispatched fix tasks.
 - **T07** — The hardest PRD paragraph (§10 Board check contract). Budget 12 KiB default,
   20 items default / 100 max, never silently omit urgent/pinned/announcements.
 - **T11** — Thin: every tool maps to one domain call (D-011). No business logic in `src/mcp`.
+- **T16 note from T12 review** — Claude Desktop's custom-connector request headers (the only bearer path, docs/clients/claude-desktop.md) are beta and available to a limited set of organizations per the cited Anthropic doc. Before T16, the operator checks whether the Add custom connector dialog shows Request headers. If not, Claude Desktop is unsupported for this account and D-010's packaged-adapter task applies.
+- **Next test-touching brief** — add `orderBy(events.seq)` at `tests/integration/messages/messages.test.ts:182` (board hazard 8b3e8eb4) and cite T12's diagnostics tests in `docs/capability-matrix.md`.
 - **T16** — Not dispatchable to an agent: requires the operator's four clients on two
   machines. Planner writes the checklist; operator records versions/OS.
 
@@ -121,6 +125,7 @@ first, so D-019–D-024 and the briefs are on `main`. Wave 1 is serial and runs 
 3. Wave 3 (D-026 route map): T07, T08, T09, T10, T13b run in parallel in clones `/Users/stephenforte/amb-<ID>`. Local e2e is serialized by the `/Users/stephenforte/.amb-e2e.lock` directory. Default assignments moved from T08 to T10; the human briefing preview moved to T12. T07 merges independently of web tasks. T08 first among web tasks (owns layout);
    T09/T10 rebase onto it — predicted conflict in nav links only.
 4. T11 after T07. T12/T14 after T11.
+5. Wave 4: T12 and T14 run in parallel in clones `/Users/stephenforte/amb-T12` and `amb-T14`, sharing the e2e lock. No shared files: T12 adds two exports to `src/domain/credentials` and one link each to the (app) layout and the board page; T14 changes only tests and `docs/capability-matrix.md`. Either may merge first; the second re-runs its gate on merged main. T14's matrix cites T12's diagnostics test only after both merge (planner follow-up).
 
 ## Verification log
 
@@ -141,3 +146,6 @@ first, so D-019–D-024 and the briefs are on `main`. Wave 1 is serial and runs 
 - **T08 re-review** (head `7a36cbe` on main ebfd473): the delta is exactly the two loading.tsx deletions; full e2e 29/29 on the head, including T09's cross-org 404; CI green.
 - **T10** (PR #16, head `a80ba42`, changes requested 2026-11-10): merged with main 573f752, the secret e2e fails a strict locator because tokens/shell.tsx's `Sections` nav duplicates T08's Primary nav links (D-026 gives nav to T08). Removing that nav gives full e2e 37/37. On the fixed tree, the log-the-secret and secret-in-URL negative controls both turn the secret e2e red. Unit 73, integration 85. All 3 Bugbot findings were real and fixed.
 - **T10 re-review** (head `0275fb9` on main 573f752): the delta is exactly the Sections nav removal; full e2e 37/37 including the secret test; CI green.
+- **T11** (PR #18, head `9ee8a15`, approved 2026-11-10): planner gate on the head merged with main d204b80. Unit 102, integration 98, e2e 38 (SDK client against the production server); CI and Bugbot clean. Negative controls: a module-level principal cache turned 6 tests red (including the 20-call cross-org isolation test); removing the body cap and making the limiter non-atomic each turned their tests red. Leaking error messages stayed green because the test checks logs, not responses; a planner probe showed the code returns a generic message, and the assertion is assigned to T14. Review: PR #18 comment.
+- **T14** (PR #21, head `6616c2a`, approved 2026-11-10): brief v1 item 9 was wrong (it required RLS on `owner_activations`, which is deliberately exempt); the worker stopped correctly and v2 fixed it. Planner gate on the head (main dbfcc05): unit 103, integration 110, e2e 44; CI history 4/4 green; Bugbot 0. Negative controls: `errorResult` echoing non-domain errors turned the raw-response hygiene test red; revocation ignored in `authenticateBearer` alone stayed green because `withOrgTx` re-checks it (defense in depth), and breaking both turned two revocation tests red. Worker's four controls (error disclosure, cursor scope hash, restricted grant, NO FORCE) reported red. Follow-up: board hazard 8b3e8eb4, `tests/integration/messages/messages.test.ts:182` compares event kinds without ORDER BY; fold `orderBy(events.seq)` into the next brief that touches tests. Review: PR #21 comment 6772485086.
+- **T12** (PR #20, head `8998c09`, approved 2026-11-10): planner gate on the head merged with main 1ac3882 (T14 included): unit 108, integration 114, e2e 45; 0 secret-pattern hits in the e2e log; CI history 6/6 green. Negative controls: secret in the diagnostics URL, sessions not filtered by token, and restricted defaults outside scope each turned a named test red. Removing the wizard's back/forward clearing stayed green because Next remounts on Back; the e2e still asserts the secret is gone after Back and reload. Claude Desktop request headers are beta for limited orgs (see T16 note). Review: PR #20 comment 6772951726.
