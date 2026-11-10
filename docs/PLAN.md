@@ -53,7 +53,7 @@ src/
 drizzle/                    T02 (0000); later numbers assigned by planner only (D-002)
 render.yaml, docs/ops/      T13
 docs/clients/               T12
-tests/security/, docs/capability-matrix.md   T14
+tests/{unit,integration,e2e}/security/, docs/capability-matrix.md   T14 (configs only run those three trees)
 load/                       T15
 ```
 
@@ -78,8 +78,8 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 | T09 | Web board: board, thread, composer, templates, search/filters, flags | 3 | T03,T05 | mid | merged — PR #15 (9393cc6) |
 | T10 | Web tokens + agents management | 3 | T03,T04 | mid | merged — PR #16 (fec5d08) |
 | T11 | MCP adapter: 9 tools, errors, rate limits | 4 | T07 | strong | merged — PR #18 (dbfcc05) |
-| T12 | Connect-an-agent wizard, 4 client snippets, diagnostics | 5 | T10,T11 | mid | planned |
-| T14 | Security/isolation suite + capability matrix (browser + MCP) | 5 | T11,T08,T09 | strong | planned |
+| T12 | Connect-an-agent wizard, 4 client snippets, diagnostics, human briefing view (D-030) | 4 | T10,T11 | strong | dispatched — docs/briefs/T12.md (PR #19) |
+| T14 | Security/isolation suite + capability matrix (browser + MCP); organizations.test.ts flake fix | 4 | T11,T08,T09 | strong | dispatched — docs/briefs/T14.md (PR #19) |
 | T15 | Load test at pilot envelope + backup restore drill | 6 | T13,T14 | mid | planned |
 | T16 | Four-client release gate + two-agent cross-machine pilot (operator-run) | 6 | T12,T15 | operator | planned |
 
@@ -107,6 +107,7 @@ first, so D-019–D-024 and the briefs are on `main`. Wave 1 is serial and runs 
   (PRD §10). Flag changes need `expected_version`. Bodies immutable. FTS over roots + replies.
 - **Wave-3 note from T04 review** — `resolveAgentSession` writes an `agent.session_seen` audit row and updates `last_seen_at` on every agent call. T08's audit view must filter or group session-seen rows so real changes stay visible; T15 measures audit growth at the pilot envelope.
 - **T14 note from T11 review** — add a response-body assertion that MCP errors from non-domain failures never contain internal text (T11's test checks the code and the logs, not the response; a planner probe proved the behaviour is correct).
+- **Wave-4 notes** — T12 became strong: D-030 adds owner-only `setupAgentConnection` and `getConnectionDiagnostics` (tenant boundary on guessed ids). Its model in this table was mid. T14 owns the fix for the flaky `tests/integration/auth/organizations.test.ts:142` (unordered audit query; failed on plan/wave-4 push run 42756740582, main CI on dbfcc05 green). Defects T14 finds are committed as expected-to-fail tests and become planner-dispatched fix tasks.
 - **T07** — The hardest PRD paragraph (§10 Board check contract). Budget 12 KiB default,
   20 items default / 100 max, never silently omit urgent/pinned/announcements.
 - **T11** — Thin: every tool maps to one domain call (D-011). No business logic in `src/mcp`.
@@ -122,6 +123,7 @@ first, so D-019–D-024 and the briefs are on `main`. Wave 1 is serial and runs 
 3. Wave 3 (D-026 route map): T07, T08, T09, T10, T13b run in parallel in clones `/Users/stephenforte/amb-<ID>`. Local e2e is serialized by the `/Users/stephenforte/.amb-e2e.lock` directory. Default assignments moved from T08 to T10; the human briefing preview moved to T12. T07 merges independently of web tasks. T08 first among web tasks (owns layout);
    T09/T10 rebase onto it — predicted conflict in nav links only.
 4. T11 after T07. T12/T14 after T11.
+5. Wave 4: T12 and T14 run in parallel in clones `/Users/stephenforte/amb-T12` and `amb-T14`, sharing the e2e lock. No shared files: T12 adds two exports to `src/domain/credentials` and one link each to the (app) layout and the board page; T14 changes only tests and `docs/capability-matrix.md`. Either may merge first; the second re-runs its gate on merged main. T14's matrix cites T12's diagnostics test only after both merge (planner follow-up).
 
 ## Verification log
 
