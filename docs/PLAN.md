@@ -77,7 +77,7 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 | T08 | Web shell: org home, projects, settings, announcement editors, audit view | 3 | T03,T04,T06 | mid | merged — PR #17 (573f752) |
 | T09 | Web board: board, thread, composer, templates, search/filters, flags | 3 | T03,T05 | mid | merged — PR #15 (9393cc6) |
 | T10 | Web tokens + agents management | 3 | T03,T04 | mid | changes requested — PR #16: its own Sections nav duplicates T08 nav links |
-| T11 | MCP adapter: 9 tools, errors, rate limits | 4 | T07 | strong | planned |
+| T11 | MCP adapter: 9 tools, errors, rate limits | 4 | T07 | strong | brief ready — docs/briefs/T11.md (PR #12) |
 | T12 | Connect-an-agent wizard, 4 client snippets, diagnostics | 5 | T10,T11 | mid | planned |
 | T14 | Security/isolation suite + capability matrix (browser + MCP) | 5 | T11,T08,T09 | strong | planned |
 | T15 | Load test at pilot envelope + backup restore drill | 6 | T13,T14 | mid | planned |
