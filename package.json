@@ -17,7 +17,11 @@
     "db:generate": "drizzle-kit generate && tsx scripts/db-append-custom.ts",
     "db:migrate": "drizzle-kit migrate",
     "db:check": "tsx scripts/db-check.ts",
-    "admin:grant": "tsx scripts/admin-grant.ts"
+    "admin:grant": "tsx scripts/admin-grant.ts",
+    "load:seed": "tsx load/seed.ts",
+    "load:run": "tsx load/run.ts",
+    "load:smoke": "tsx load/run.ts --smoke",
+    "load:drop": "tsx load/drop.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",
