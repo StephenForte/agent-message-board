@@ -35,10 +35,13 @@ export async function createAnnouncementDatabase(): Promise<{
   let admin: ReturnType<typeof openDatabase> | undefined;
   let runtime: ReturnType<typeof openDatabase> | undefined;
   const cleanup = async () => {
+    // pg-pool resolves end() before idle backends leave pg_stat_activity.
+    // DROP DATABASE ... WITH (FORCE) then kills those sockets, and the pool
+    // emits 57P01 with no listener. Wait until none remain, and do not FORCE.
     await admin?.pool.end().catch(() => undefined);
     await runtime?.pool.end().catch(() => undefined);
     try {
-      if (created) await adminClient.query(`DROP DATABASE "${name}" WITH (FORCE)`);
+      if (created) await dropDatabaseWhenQuiet(adminClient, name);
     } finally {
       try {
         if (roleCreated) await adminClient.query(`DROP ROLE IF EXISTS "${role}"`);
@@ -85,6 +88,34 @@ export async function createAnnouncementDatabase(): Promise<{
     const reason = error instanceof Error ? error.message : 'unknown error';
     throw new Error(reason.replace(/postgres(?:ql)?:\/\/\S+/gi, '[redacted-url]'));
   }
+}
+
+const quietDeadlineMs = 5_000;
+
+async function dropDatabaseWhenQuiet(client: pg.Client, databaseName: string): Promise<void> {
+  const deadline = Date.now() + quietDeadlineMs;
+  for (;;) {
+    const activity = await client.query<{ n: number }>(
+      'select count(*)::int as n from pg_stat_activity where datname = $1',
+      [databaseName],
+    );
+    const backends = activity.rows[0]?.n ?? 0;
+    if (backends === 0) {
+      try {
+        await client.query(`DROP DATABASE "${databaseName}"`);
+        return;
+      } catch (error) {
+        if (!isObjectInUse(error) || Date.now() >= deadline) throw error;
+      }
+    } else if (Date.now() >= deadline) {
+      throw new Error(`timed out waiting for ${backends} connection(s) to close before dropping ${databaseName}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 15));
+  }
+}
+
+function isObjectInUse(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === '55006';
 }
 
 export async function seedOrg(db: TestDatabase, label: string): Promise<OrgSeed> {
