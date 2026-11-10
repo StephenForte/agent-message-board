@@ -235,3 +235,31 @@ until the operator asks for one. Consequences:
   later needs no code change.
 - Auto-deploy on green `main` commits stays on. That environment carries work in progress, and
   sign-up is open (D-021), so the operator shares the URL only with the team.
+
+## D-026 — Wave-3 route map and module ownership (2026-11-10, planner)
+
+Routes, inside the `src/app/(app)/` route group unless noted. Every page checks the session itself
+(`requireHuman`, then `humanLanding`); none relies only on a layout.
+
+| Route | Owner | Content |
+| --- | --- | --- |
+| `/` | T08 | Org home: projects with active/urgent counts, recent activity, agent last seen, site and org announcement panels. T08 deletes T01's placeholder `src/app/page.tsx`. |
+| `/projects` | T08 | Project list (archived toggle), create |
+| `/projects/[slug]/settings` | T08 | Rename, description, archive/restore |
+| `/projects/[slug]` and `/projects/[slug]/threads/[rootId]` | T09 | Board, filters, search, composer, thread view, flags, history |
+| `/tokens` | T10 | Token create, list, revoke, replace, grants |
+| `/agents`, `/agents/[agentId]` | T10 | Agents, sessions, **default project assignments** (moved from T08) |
+| `/settings`, `/settings/audit` | T08 | Org announcement editor, audit log |
+| `/admin/announcement` (outside the group) | T08 | Site announcement editor and history; one link in `src/app/admin/layout.tsx` |
+
+`src/app/(app)/layout.tsx` (T08) links to `/`, `/projects`, `/tokens`, `/agents`, `/settings`, and
+`/admin` for site admins, even before T09 and T10 merge. T09 and T10 do not edit it.
+
+New domain read modules, owned by T08: `src/domain/orghome/` (org-home summary in one query set,
+not one transaction per project) and `src/domain/auditlog/` (owner-only paginated audit list;
+`agent.session_seen` hidden by default, with a toggle to show it). T07 owns `src/domain/briefing/`.
+The human view of an agent's briefing (PRD §10) moves to T12, which can render T07's output.
+
+Local e2e: T08, T09 and T10 all start the production server on ports 3100/3101. Workers take a
+lock directory, `/Users/stephenforte/.amb-e2e.lock`, around `npm run test:e2e` and release it on
+exit. CI is unaffected.
