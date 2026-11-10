@@ -71,12 +71,12 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 | T05 | Messages domain (threads, flags, lifecycle, search) | 2 | T02 | strong | merged — PR #6 (dc21886) |
 | T06 | Announcements domain | 2 | T02 | mid | merged — PR #8 (ada7557) |
 | T13 | Render staging deploy, render.yaml, ops docs | 2 | T01 | mid | merged — PR #7 (6ccd287); Render not yet applied (operator decision) |
-| T06b | Fix flaky announcement test teardown (57P01 on CI) | 3 | T06 | mid | approved — PR #11 (a6910f5), awaiting merge |
-| T13b | Trim render.yaml to one staging environment (D-025) | 3 | T13 | mid | planned |
-| T07 | Briefing/check_board engine + cursors | 3 | T04,T05,T06 | strong | planned |
-| T08 | Web shell: org home, projects, settings, announcement editors, audit view | 3 | T03,T04,T06 | mid | planned |
-| T09 | Web board: board, thread, composer, templates, search/filters, flags | 3 | T03,T05 | mid | planned |
-| T10 | Web tokens + agents management | 3 | T03,T04 | mid | planned |
+| T06b | Fix flaky announcement test teardown (57P01 on CI) | 3 | T06 | mid | merged — PR #11 (c10ea64) |
+| T13b | Trim render.yaml to one staging environment (D-025) | 3 | T13 | mid | brief ready — docs/briefs/T13b.md |
+| T07 | Briefing/check_board engine + cursors | 3 | T04,T05,T06 | strong | brief ready — docs/briefs/T07.md |
+| T08 | Web shell: org home, projects, settings, announcement editors, audit view | 3 | T03,T04,T06 | mid | brief ready — docs/briefs/T08.md |
+| T09 | Web board: board, thread, composer, templates, search/filters, flags | 3 | T03,T05 | mid | brief ready — docs/briefs/T09.md |
+| T10 | Web tokens + agents management | 3 | T03,T04 | mid | brief ready — docs/briefs/T10.md |
 | T11 | MCP adapter: 9 tools, errors, rate limits | 4 | T07 | strong | planned |
 | T12 | Connect-an-agent wizard, 4 client snippets, diagnostics | 5 | T10,T11 | mid | planned |
 | T14 | Security/isolation suite + capability matrix (browser + MCP) | 5 | T11,T08,T09 | strong | planned |
@@ -118,7 +118,7 @@ first, so D-019–D-024 and the briefs are on `main`. Wave 1 is serial and runs 
 2. Wave 2 merge order: T02-dependents in any order; **T13 any time after T01**.
    Predicted conflicts: `package.json`/lockfile (every task) — D-017 rule;
    `.env.example` appends (T03, T13) — keep both.
-3. Wave 3: T07 merges independently of web tasks. T08 first among web tasks (owns layout);
+3. Wave 3 (D-026 route map): T07, T08, T09, T10, T13b run in parallel in clones `/Users/stephenforte/amb-<ID>`. Local e2e is serialized by the `/Users/stephenforte/.amb-e2e.lock` directory. Default assignments moved from T08 to T10; the human briefing preview moved to T12. T07 merges independently of web tasks. T08 first among web tasks (owns layout);
    T09/T10 rebase onto it — predicted conflict in nav links only.
 4. T11 after T07. T12/T14 after T11.
 
