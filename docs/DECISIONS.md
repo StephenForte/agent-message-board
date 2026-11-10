@@ -281,3 +281,12 @@ renders and reused on resubmit. No keys are added to other operations:
 
 PRD §10's idempotency requirement concerns agent mutations over MCP. Those operations already
 carry keys (T04, T05).
+
+## D-028 — Board-check Markdown is the fenced JSON envelope (2026-11-10, planner, from T07 review)
+
+`renderBoardMarkdown` (T07) emits a fixed header and the canonical JSON envelope inside a code
+fence longer than any backtick run in the content. That meets PRD §10: the same permitted fields,
+deterministic output, and message content cannot forge sections or cursor lines. It is accepted
+for Phase 1. T11 exposes it as the Markdown format of `check_board`. If the T16 client gate shows
+that a client or model handles a prose rendering better, that becomes a new task with a parity
+test against the JSON. It is not a T11 change.
