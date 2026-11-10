@@ -263,3 +263,50 @@ The human view of an agent's briefing (PRD §10) moves to T12, which can render 
 Local e2e: T08, T09 and T10 all start the production server on ports 3100/3101. Workers take a
 lock directory, `/Users/stephenforte/.amb-e2e.lock`, around `npm run test:e2e` and release it on
 exit. CI is unaffected.
+
+## D-027 — Retry safety in the web UI (2026-11-10, planner)
+
+Corrects the wave-3 UI briefs, which required an idempotency key on every mutating form. Every
+submit control is disabled while its request is pending. Keys are used where the domain operation
+accepts one (`createProject`, `postRoot`, `postReply`, `updateRootFlags`), generated when the form
+renders and reused on resubmit. No keys are added to other operations:
+
+- Set-style operations (project update, archive, restore, token grants, agent defaults, revoke)
+  repeat harmlessly; a repeated archive or restore may log a second audit row and event.
+- Announcement set and clear are guarded by `expectedVersion`. A retry after a commit returns
+  `version_conflict`; the UI reloads and shows the current state, which already contains the change.
+- `createToken` and `replaceToken` take no key, so a double submit can issue two tokens. That is
+  accepted for Phase 1: both appear in the list and can be revoked. Revisit if this happens in
+  practice.
+
+PRD §10's idempotency requirement concerns agent mutations over MCP. Those operations already
+carry keys (T04, T05).
+
+## D-028 — Board-check Markdown is the fenced JSON envelope (2026-11-10, planner, from T07 review)
+
+`renderBoardMarkdown` (T07) emits a fixed header and the canonical JSON envelope inside a code
+fence longer than any backtick run in the content. That meets PRD §10: the same permitted fields,
+deterministic output, and message content cannot forge sections or cursor lines. It is accepted
+for Phase 1. T11 exposes it as the Markdown format of `check_board`. If the T16 client gate shows
+that a client or model handles a prose rendering better, that becomes a new task with a parity
+test against the JSON. It is not a T11 change.
+
+## D-029 — MCP rate-limit defaults and adapter shape (2026-11-10, planner)
+
+Per-token, fixed one-minute windows in `rate_limit_windows`, incremented with one atomic upsert
+inside `withOrgTx`, so the limits hold across instances (PRD §14). Pilot defaults, as named
+constants in `src/domain/ratelimit`:
+
+| Bucket | Per token per minute | Charged by |
+| --- | --- | --- |
+| `read` | 120 | connect_agent, list_projects, check_board, list_messages, get_thread |
+| `write` | 30 | post_message, reply_message, update_message, create_project |
+| `create_project` | 5 | create_project (in addition to `write`) |
+
+Over the limit → `rate_limited` with `retryAfterSeconds` = seconds left in the window. These are
+operator defaults to tune in the pilot (T15 measures them). Moving them to env configuration later
+needs a decision entry.
+
+The MCP request body is capped at 64 KiB before parsing. `list_messages` and `get_thread` render
+Markdown the same way as D-028 (fenced JSON). The server, transport, and principal are built per
+request; no module-level request state.
