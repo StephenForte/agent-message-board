@@ -38,6 +38,8 @@ check) — no custom JSON mutation endpoints for the website without explicit CS
 
 ## D-004 — Hosting (2026-11-09, operator-confirmed)
 
+AMENDED by D-025 (2026-11-09): one environment, one instance, until the operator asks for production.
+
 **Render** web service + **Render Postgres**, two environments: `staging` and `prod`, both from
 `render.yaml`. Daily backups via Render; a restore drill is a launch gate (PRD §14).
 
@@ -218,3 +220,18 @@ writes in `withSiteAdminTx` (T06). Site-announcement changes have no audit row
 `RESEND_API_KEY` and `EMAIL_FROM`, required in production by `src/env.ts` (startup refuses and
 names the key, like the existing keys); console adapter outside production. T03 adds them;
 T13 lists them in `render.yaml` as `sync: false`.
+
+## D-025 — One Render environment, one instance (2026-11-09, operator)
+
+Amends D-004. The first deploy follows wave 3. It is a single environment with one web instance and
+one database, used by the operator and later the operator's team. No separate `prod` environment
+until the operator asks for one. Consequences:
+
+- `render.yaml` defines only the `staging` environment (`amb-staging-web`, `amb-staging-db`), and
+  `docs/ops/` is updated to match. Assigned to T13b in wave 3. Approximate cost halves (T13's quote:
+  $17.50/month).
+- One instance makes Better Auth's per-instance login limiter (T03) effective as-is. Everything else
+  stays multi-instance safe (stateless MCP, D-010; Postgres-backed rate limits, T11), so scaling out
+  later needs no code change.
+- Auto-deploy on green `main` commits stays on. That environment carries work in progress, and
+  sign-up is open (D-021), so the operator shares the URL only with the team.
