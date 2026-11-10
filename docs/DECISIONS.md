@@ -360,3 +360,25 @@ operator has restored Render Postgres many times on other projects and accepts R
 daily backups as sufficient for Phase 1. T15 no longer includes a restore drill. Recovery targets
 in PRD §14 (24 hours of data loss, one business day to recover) remain the stated expectation.
 Revisit before inviting users outside the operator's team.
+
+## D-033 — Data retention and the session-activity audit (2026-11-10, operator)
+
+T15 measured about 780 bytes stored per agent call and nothing that deletes it (PLAN, T15
+record). The operator chose:
+
+- **Retry records** (`idempotency_records`): deleted once `expires_at` has passed. D-013's 48-hour
+  retention stands; this is the purge D-013 promised and no task built.
+- **Rate-limit counters** (`rate_limit_windows`): rows whose window ended more than one hour ago
+  are deleted. The current window is never touched, so limits stay exact.
+- **Session activity audit** (`agent.session_seen`): `last_seen_at` on the session and the agent is
+  still updated on every call. The audit row is written at most once per session per 15 minutes,
+  tracked by a new column `agent_sessions.last_seen_audited_at` (migration `0001`, assigned to
+  T18 under D-002). Activity rows older than 30 days are deleted.
+- **Every other audit row** (posts, flags, archives, tokens, defaults, organization actions) is
+  kept indefinitely. Retention never deletes `events`, `messages` or announcements.
+- **How it runs:** a timer inside the web process, once an hour, starting a few minutes after
+  startup. One instance at a time via a Postgres advisory lock, so a second instance is safe. It
+  deletes in bounded batches per organization, through a named kernel helper that sets
+  `app.org_id`, so FORCE row-level security applies (D-020). No Render cron job.
+- The intervals (15 minutes, 30 days, one hour) are named constants. Changing them needs a new
+  entry.
