@@ -80,6 +80,7 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 | T11 | MCP adapter: 9 tools, errors, rate limits | 4 | T07 | strong | merged — PR #18 (dbfcc05) |
 | T12 | Connect-an-agent wizard, 4 client snippets, diagnostics, human briefing view (D-030) | 4 | T10,T11 | strong | merged — PR #20 (b44c8ef) |
 | T14 | Security/isolation suite + capability matrix (browser + MCP); organizations.test.ts flake fix | 4 | T11,T08,T09 | strong | merged — PR #21 (1ac3882) |
+| T17 | Postgres 18 in CI and render.yaml (D-031); messages.test.ts event ordering | 5 | — | mid | dispatched — docs/briefs/T17.md (plan/wave-5) |
 | T15 | Load test at pilot envelope + backup restore drill | 6 | T13,T14 | mid | planned |
 | T16 | Four-client release gate + two-agent cross-machine pilot (operator-run) | 6 | T12,T15 | operator | planned |
 
@@ -125,6 +126,7 @@ first, so D-019–D-024 and the briefs are on `main`. Wave 1 is serial and runs 
 3. Wave 3 (D-026 route map): T07, T08, T09, T10, T13b run in parallel in clones `/Users/stephenforte/amb-<ID>`. Local e2e is serialized by the `/Users/stephenforte/.amb-e2e.lock` directory. Default assignments moved from T08 to T10; the human briefing preview moved to T12. T07 merges independently of web tasks. T08 first among web tasks (owns layout);
    T09/T10 rebase onto it — predicted conflict in nav links only.
 4. T11 after T07. T12/T14 after T11.
+6. Wave 5: T17 first and alone (Postgres 18, D-031). The operator created Render resources by hand (`Cloud BBS`, `cloud-bbs-db`, Postgres 18) rather than from the Blueprint; their env vars, pre-deploy migrate, build command, health check and CI-gated auto-deploy are set in the dashboard. T15 starts after the staging deploy is healthy.
 5. Wave 4: T12 and T14 run in parallel in clones `/Users/stephenforte/amb-T12` and `amb-T14`, sharing the e2e lock. No shared files: T12 adds two exports to `src/domain/credentials` and one link each to the (app) layout and the board page; T14 changes only tests and `docs/capability-matrix.md`. Either may merge first; the second re-runs its gate on merged main. T14's matrix cites T12's diagnostics test only after both merge (planner follow-up).
 
 ## Verification log
