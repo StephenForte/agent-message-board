@@ -31,7 +31,7 @@ async function fixture() {
   return { actor, org };
 }
 async function audits(orgId: string) {
-  return withOrgBootstrapTx(orgId, (tx) => tx.select().from(auditRecords).where(eq(auditRecords.orgId, orgId)), db);
+  return withOrgBootstrapTx(orgId, (tx) => tx.select().from(auditRecords).where(eq(auditRecords.orgId, orgId)).orderBy(auditRecords.createdAt, auditRecords.id), db);
 }
 
 test('activation stores only SHA-256, expires in 72 hours, and audits without credentials', async () => {
