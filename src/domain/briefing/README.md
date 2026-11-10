@@ -61,7 +61,10 @@ when another group's first page does not contain it.
 
 Reads compose six fixed message lists for agents, five for humans: urgent, pinned,
 addressed, and one each for the three recent categories. Each source reads at most
-100 previews and merges by activity then ID descending. A signed group continuation
+100 previews. A head-only merge preserves each source’s PostgreSQL microsecond
+order; between source heads, compare public ISO activity timestamps then ID
+descending. Rows tied within a public millisecond may interleave across categories,
+but each consumed source remains an exact prefix for continuation offsets. A signed group continuation
 stores each source's list cursor and consumed offset within that page; it re-reads
 only one source page per category on the next request, with the target group first.
 No full-board scan and no query per returned item. Like the underlying message

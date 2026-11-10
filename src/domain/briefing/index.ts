@@ -165,8 +165,20 @@ export async function checkBoardInTx(tx: DbTx, ctx: TxContext, input: CheckBoard
   if (continuation?.type !== 'group') for (const scope of ['site', 'org'] as const) if (!(scope in outputAnnouncements)) announcement(scope);
   for (const group of orderedGroups) {
     const sources = pages[group];
-    const candidates = sources.flatMap(({ page, position }, source) => page.items.slice(position.skip).map((item) => ({ item, source })))
-      .sort((a, b) => b.item.lastActivityAt.localeCompare(a.item.lastActivityAt) || b.item.id.localeCompare(a.item.id));
+    // Merge only source heads. Re-sorting an entire source by public JS dates
+    // would lose PostgreSQL microseconds and make numeric skip consume a non-prefix.
+    const offsets = sources.map(() => 0);
+    const candidates: Array<{ item: Preview; source: number }> = [];
+    for (;;) {
+      const heads = sources.flatMap(({ page, position }, source) => {
+        const item = page.items[position.skip + offsets[source]!];
+        return item ? [{ item, source }] : [];
+      }).sort((a, b) => b.item.lastActivityAt.localeCompare(a.item.lastActivityAt) || b.item.id.localeCompare(a.item.id));
+      const next = heads[0];
+      if (!next) break;
+      candidates.push(next);
+      offsets[next.source]!++;
+    }
     const consumed = sources.map(() => 0);
     const ids: string[] = [];
     for (const { item, source } of candidates) {

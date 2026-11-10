@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import * as schema from '../../../src/db/schema';
@@ -374,5 +374,23 @@ test('continuation-only pagination retains the originating feed position instead
     expect(continued.events.map((e) => e.seq)).toEqual([1]);
     const next = await check(seed, { cursor: continued.nextCursor });
     expect(next.events).toEqual([]);
+  }
+});
+
+
+test('continuations consume a database-ordered prefix when timestamps differ only in microseconds', async () => {
+  const seed = await fixture('microseconds');
+  const [newer, older] = await roots(seed, 2, { urgent: true, pinned: true, category: 'decision' });
+  // The newer root has the lower ID, deliberately reversing the JS-ms/id sort.
+  await admin.db.execute(sql`update messages set last_activity_at = case
+    when id = ${newer}::uuid then '2026-11-09T12:00:00.000900Z'::timestamptz
+    else '2026-11-09T12:00:00.000100Z'::timestamptz end
+    where org_id = ${seed.orgId} and id in (${newer}::uuid, ${older}::uuid)`);
+  const initial = await check(seed, { limit: 1 });
+  for (const group of ['urgent', 'pinned', 'recent'] as const) {
+    expect(initial.groups[group].threadIds).toEqual([newer]);
+    const next = await check(seed, { continuation: initial.groups[group].continuation!, limit: 1 });
+    expect(next.groups[group].threadIds).toEqual([older]);
+    expect(next.groups[group].truncated).toBe(false);
   }
 });
