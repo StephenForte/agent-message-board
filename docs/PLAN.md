@@ -81,7 +81,7 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 | T12 | Connect-an-agent wizard, 4 client snippets, diagnostics, human briefing view (D-030) | 4 | T10,T11 | strong | merged — PR #20 (b44c8ef) |
 | T14 | Security/isolation suite + capability matrix (browser + MCP); organizations.test.ts flake fix | 4 | T11,T08,T09 | strong | merged — PR #21 (1ac3882) |
 | T17 | Postgres 18 in CI and render.yaml (D-031); messages.test.ts event ordering | 5 | — | mid | merged — PR #22 (58305ff) |
-| T15 | Load test at pilot envelope + backup restore drill | 6 | T13,T14 | mid | planned |
+| T15 | Local load test at the pilot envelope (restore drill waived, D-032); database.md refresh | 5 | T17 | strong | dispatched — docs/briefs/T15.md (plan/wave-5) |
 | T16 | Four-client release gate + two-agent cross-machine pilot (operator-run) | 6 | T12,T15 | operator | planned |
 
 Wave 2 runs five tasks in parallel in one repo: each parallel worker needs its own clone
@@ -114,6 +114,7 @@ first, so D-019–D-024 and the briefs are on `main`. Wave 1 is serial and runs 
 - **T11** — Thin: every tool maps to one domain call (D-011). No business logic in `src/mcp`.
 - **T16 note from T12 review** — Claude Desktop's custom-connector request headers (the only bearer path, docs/clients/claude-desktop.md) are beta and available to a limited set of organizations per the cited Anthropic doc. Before T16, the operator checks whether the Add custom connector dialog shows Request headers. If not, Claude Desktop is unsupported for this account and D-010's packaged-adapter task applies.
 - **Next test-touching brief** — add `orderBy(events.seq)` at `tests/integration/messages/messages.test.ts:182` (board hazard 8b3e8eb4) and cite T12's diagnostics tests in `docs/capability-matrix.md`.
+- **Backlog (operator, 2026-11-10)** — site-admin UX is clunky (sign-up, verify, shell `admin:grant`); improve later. Capability matrix still lacks rows citing T12's diagnostics tests (needs evidence for all six role columns).
 - **T16** — Not dispatchable to an agent: requires the operator's four clients on two
   machines. Planner writes the checklist; operator records versions/OS.
 
