@@ -76,7 +76,7 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 | T07 | Briefing/check_board engine + cursors | 3 | T04,T05,T06 | strong | merged — PR #14 (ebfd473) |
 | T08 | Web shell: org home, projects, settings, announcement editors, audit view | 3 | T03,T04,T06 | mid | merged — PR #17 (573f752) |
 | T09 | Web board: board, thread, composer, templates, search/filters, flags | 3 | T03,T05 | mid | merged — PR #15 (9393cc6) |
-| T10 | Web tokens + agents management | 3 | T03,T04 | mid | changes requested — PR #16: its own Sections nav duplicates T08 nav links |
+| T10 | Web tokens + agents management | 3 | T03,T04 | mid | approved — PR #16 (0275fb9), awaiting merge |
 | T11 | MCP adapter: 9 tools, errors, rate limits | 4 | T07 | strong | brief ready — docs/briefs/T11.md (PR #12) |
 | T12 | Connect-an-agent wizard, 4 client snippets, diagnostics | 5 | T10,T11 | mid | planned |
 | T14 | Security/isolation suite + capability matrix (browser + MCP) | 5 | T11,T08,T09 | strong | planned |
@@ -140,3 +140,4 @@ first, so D-019–D-024 and the briefs are on `main`. Wave 1 is serial and runs 
 - **T08** (PR #17, head `42c57f2`, changes requested 2026-11-10): merged with main ebfd473, T09's cross-org e2e returns 200 instead of 404. Proven cause: `(app)/loading.tsx` and `(app)/projects/loading.tsx` stream before T09's `notFound()`. Removing both gives full e2e 29/29; removing either alone does not. No data leaks, but main's CI would go red. Everything else passed: unit 71, integration 85; the cross-user-cache negative control turned the two-org e2e red. Review: PR #17 comment 6758344962. Lesson: parallel UI tasks are reviewed on the merged tree, where interactions show up.
 - **T08 re-review** (head `7a36cbe` on main ebfd473): the delta is exactly the two loading.tsx deletions; full e2e 29/29 on the head, including T09's cross-org 404; CI green.
 - **T10** (PR #16, head `a80ba42`, changes requested 2026-11-10): merged with main 573f752, the secret e2e fails a strict locator because tokens/shell.tsx's `Sections` nav duplicates T08's Primary nav links (D-026 gives nav to T08). Removing that nav gives full e2e 37/37. On the fixed tree, the log-the-secret and secret-in-URL negative controls both turn the secret e2e red. Unit 73, integration 85. All 3 Bugbot findings were real and fixed.
+- **T10 re-review** (head `0275fb9` on main 573f752): the delta is exactly the Sections nav removal; full e2e 37/37 including the secret test; CI green.
