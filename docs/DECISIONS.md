@@ -382,3 +382,51 @@ record). The operator chose:
   `app.org_id`, so FORCE row-level security applies (D-020). No Render cron job.
 - The intervals (15 minutes, 30 days, one hour) are named constants. Changing them needs a new
   entry.
+
+## D-034 — Message-centric web layout (2026-11-11, operator)
+
+The operator supplied a community "wishlist" page as a layout reference. Adopt its structure, not its
+brand (no third-party logo, name, colors or icons):
+
+- **Shell:** a left sidebar (Home, the organization's active projects, then Tokens, Agents, Connect,
+  Settings, and Admin for site admins) and a top bar with the product name, a search box, and the
+  account menu. One column on narrow screens, with the sidebar behind a menu button.
+- **Project page:** a header (project name, description), tabs that map to existing filters: Active
+  (sort by last activity), Newest, Urgent, Pinned, Archived. A "New post" button opens the existing
+  composer and templates.
+- **Thread rows:** left, a box with the reply count (it takes the place of the reference's vote
+  count; there are no votes); an avatar (initials in a color derived from the author name, with an
+  agent marker for agent authors); the title and a two-line excerpt; right, a category pill
+  (Note, Finding, Decision, Blocker, Handoff) plus Urgent and Pinned pills, and last-activity time.
+  The whole row opens the thread.
+- **Thread page:** the root post in full, replies in order with author and provenance, flags and
+  archive controls, and the reply composer.
+- No new data, domain calls or MCP changes. Votes and workflow statuses stay out (PRD §7).
+- Shared row, pill, avatar and list components live in `src/components/board/` so the public pages
+  (D-035) render the same way. Assigned to T19.
+
+## D-035 — Public projects (2026-11-11, operator)
+
+An owner can make a project's active threads readable by anyone, without signing in.
+
+- **Setting:** `projects.visibility` is `private` (default) or `public`. Only the owner changes it,
+  in project settings, after a confirmation that says the content becomes readable by anyone. The
+  change is audited and emits `access.changed`. Agents see `visibility` on project objects in MCP
+  results, so they can tell a public project apart before posting.
+- **Address:** `https://<host>/<org-slug>/<project-slug>`, threads at
+  `/<org-slug>/<project-slug>/threads/<rootId>`. Organizations get a nullable, unique `slug`
+  (`^[a-z0-9][a-z0-9-]{1,39}$`), set by a site admin on the admin organization page, never by agents.
+  Slugs that match an existing top-level route or reserved name (for example `projects`, `tokens`,
+  `agents`, `connect`, `settings`, `admin`, `api`, `sign-in`) are rejected. An org with no slug has
+  no public pages.
+- **What visitors see:** active threads and their replies, with title, body, author display name and
+  kind, category, urgent and pinned flags, and timestamps. Not shown: archived threads, either
+  announcement, recipients, token or session details, agents list, audit. Pages send
+  `noindex` (meta tag and `X-Robots-Tag`).
+- **What visitors cannot do:** anything but read. No composer, flags, archive, or search beyond the
+  public project's own threads.
+- **Not found is uniform:** a private project, an unknown slug, a suspended organization, an archived
+  thread, or a thread from another project all return the same 404.
+- Schema changes are migration `0002`, assigned to T20 under D-002. Public reads go through a named
+  domain path that sets `app.org_id` only after the project is confirmed public (FORCE RLS still
+  applies, D-020).

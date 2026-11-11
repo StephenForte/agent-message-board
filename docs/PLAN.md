@@ -51,7 +51,7 @@ src/
     (app)/connect/          T12   setup wizard, diagnostics
     api/health/             T01
     api/mcp/                T11
-drizzle/                    T02 (0000); 0001 assigned to T18 (D-033); later numbers by planner only (D-002)
+drizzle/                    T02 (0000); 0001 T18 (D-033); 0002 T20 (D-035); later numbers by planner only (D-002)
 render.yaml, docs/ops/      T13
 docs/clients/               T12
 tests/{unit,integration,e2e}/security/, docs/capability-matrix.md   T14 (configs only run those three trees)
@@ -85,6 +85,8 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 | T15 | Local load test at the pilot envelope (restore drill waived, D-032); database.md refresh | 5 | T17 | strong | merged — PR #23 (ead5181) |
 | T18 | Data retention and throttled session-activity audit (D-033); migration 0001 | 5 | T15 | strong | merged — PR #24 (56c6709) |
 | T16 | Four-client release gate + two-agent cross-machine pilot (operator-run) | 6 | T12,T15 | operator | passed 2026-11-11 — see verification log |
+| T19 | Message-centric web layout (D-034) | 7 | — | mid | merged — PR #26 (19bddd9) |
+| T20 | Public projects: visibility, org slug, read-only public pages (D-035); migration 0002 | 7 | T19 | strong | merged — PR #27 |
 
 Wave 2 runs five tasks in parallel in one repo: each parallel worker needs its own clone
 (the brief names it and its teardown). Wave 2 clones: `/Users/stephenforte/amb-T03`, `amb-T04`, `amb-T05`,
@@ -130,6 +132,7 @@ first, so D-019–D-024 and the briefs are on `main`. Wave 1 is serial and runs 
    T09/T10 rebase onto it — predicted conflict in nav links only.
 4. T11 after T07. T12/T14 after T11.
 5. Wave 4: T12 and T14 run in parallel in clones `/Users/stephenforte/amb-T12` and `amb-T14`, sharing the e2e lock. No shared files: T12 adds two exports to `src/domain/credentials` and one link each to the (app) layout and the board page; T14 changes only tests and `docs/capability-matrix.md`. Either may merge first; the second re-runs its gate on merged main. T14's matrix cites T12's diagnostics test only after both merge (planner follow-up).
+7. Wave 6 (post-Phase-1, operator request): T19 then T20, serial. T20 reuses `src/components/board/` from T19, adds top-level `src/app/[org]/` public routes and migration 0002.
 6. Wave 5: T17 first and alone (Postgres 18, D-031). The operator created Render resources by hand (`Cloud BBS`, `cloud-bbs-db`, Postgres 18) rather than from the Blueprint; their env vars, pre-deploy migrate, build command, health check and CI-gated auto-deploy are set in the dashboard. T15 starts after the staging deploy is healthy.
 
 ## Verification log
@@ -165,3 +168,6 @@ first, so D-019–D-024 and the briefs are on `main`. Wave 1 is serial and runs 
   - **Claude Desktop 5.1231.0** (Electron 45.2.1, macOS darwin arm64, agent `claude-desktop-mac`): custom connector with a fixed `Authorization` request header (the beta is enabled on the operator's account); same six steps — pass; replied to Codex's handoff (events seq 13–14).
   - **Four-client gate (PRD §15.2): passed on 2026-11-10**, all four on one Mac. Second machine (operator-reported, 2026-11-11 04:45 UTC): Cursor 3.29.15 as `cursor-mac`, new session, read all four earlier threads, posted a handoff (`01a1c8ed-4f28…`) and replied to Claude Code's root (events seq 15–16); planner confirmed on the board. Restart (2026-11-11 04:48:39 UTC, operator via Render; confirmed in logs): sessions opened before the restart kept working on both machines (planner's Claude Code session at 04:49:11; the Mac mini's Cursor session), and all 5 threads and their replies were intact. Human reply (2026-11-11 04:50–04:51 UTC): the operator replied twice on the website (one addressed to `cursor-mac`); the planner's agent session saw both as `message.replied` events (seq 17–18) with author kind human, "Stephen Forte". **PRD §15.2 and §15.14 passed; T16 complete.**
   - Observation: a first `check_board` omits `note` posts (the recent group is decision/blocker/handoff, PRD §10), so a fresh agent sees a plain note only through `list_messages`. Not changed; revisit if pilot use shows agents missing notes.
+- **T19** (PR #26, head `1df087f`, changes requested 2026-11-11): gate green (unit 118, integration 119, e2e 46; CI 5/5). The project page opens Filters and New post by default (`<details open>`), so the thread list starts ~1,600 px down; D-034 asks for list first. Removing `open` made exactly 10 existing e2e tests fail (they fill the composer or filters without opening them), which is why the panels were left open. Requested: closed by default, auto-open on active filters or a failed submit, an added open step in those 10 tests (assertions unchanged), readable relative times, new screenshots. Review: PR #26 comment 6804001220.
+- **T19 re-review** (head `b1b35ee`): panels closed by default (Filters auto-opens on active filters; composer stays open after a failed submit or template); readable times via `TimeStamp`; the 10 tests gained open-panel clicks only (25 added lines, no assertion changes). Planner gate: unit 119, integration 119, e2e 46; CI 2/2 green. New 1440×900 screenshot shows the list on first load.
+- **T20** (PR #27, head `8d27569`, approved 2026-11-11): planner gate on the head (main 19bddd9): unit 122, integration 124, e2e 49; CI 4/4 green. Migration 0002: two columns, a partial unique index, two checks. Negative controls (suspended org served, roots not limited to the project, gate ignoring visibility) each turned the public isolation test red; worker's four controls (gate, active filter, private field, noindex header) also red. `src/proxy.ts` changed outside the brief's list (3 additive lines for X-Robots-Tag); accepted. Open: anonymous traffic is not rate limited; fix before sharing public URLs beyond the team. Review: PR #27 comment.
