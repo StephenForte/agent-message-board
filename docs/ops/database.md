@@ -22,6 +22,8 @@ Pre-deploy runs after the build and before the new instance takes traffic ([Depl
 
 There is no down migration. `package.json` has no rollback script. A bad migration is fixed by a new forward migration on top of the lineage (D-002). Do not edit a migration that has already been applied. Two branches must not each add a migration: drizzle-kit chains snapshots by `prevId`, and only one new migration can land at a time.
 
+Migration 0002 adds `organizations.slug` (nullable, unique when set) and `projects.visibility` (`private` or `public`, default `private`). Applied to a database that already has organizations and projects, every existing project becomes `private` and every organization slug stays null. A public page exists only after a site admin sets the organization slug and an owner switches that project to `public`. Anonymous reads go through `withPublicReadTx`, which sets `app.org_id` and then reads only after that project is confirmed public and active. The migration itself publishes nothing.
+
 `drizzle-kit` is a devDependency. The build command installs devDependencies on purpose so this command can see it. See [deploy.md](deploy.md).
 
 ## Staging check

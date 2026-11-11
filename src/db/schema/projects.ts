@@ -19,6 +19,7 @@ export const projects = pgTable('projects', {
   name: text('name').notNull(),
   description: text('description'),
   status: text('status').notNull(),
+  visibility: text('visibility').notNull().default('private'),
   createdByKind: text('created_by_kind').notNull(),
   createdByUserId: text('created_by_user_id').references(() => user.id),
   createdByTokenId: uuid('created_by_token_id'),
@@ -43,6 +44,7 @@ export const projects = pgTable('projects', {
   check('projects_name_len', sql`char_length(${table.name}) between 1 and 200`),
   check('projects_description_len', sql`${table.description} is null or octet_length(${table.description}) <= 8192`),
   check('projects_status', sql`${table.status} in ('active', 'archived')`),
+  check('projects_visibility', sql`${table.visibility} in ('private', 'public')`),
   check('projects_creator', sql`(
     (${table.createdByKind} = 'human'
       and ${table.createdByUserId} is not null
