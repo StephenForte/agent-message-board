@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type SyntheticEvent } from 'react';
 import { Markdown } from '../../../../components/markdown/Markdown';
 import { postReplyAction, postRootAction } from './actions';
 import {
@@ -26,19 +26,30 @@ export function RootComposer({ slug, idempotencyKey, agents }: {
   const [message, setMessage] = useState<string | null>(null);
   const [preview, setPreview] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
   const bytes = bodyByteLength(body);
+
+  function keepOpen() {
+    setOpen(true);
+  }
+
+  function onToggle(event: SyntheticEvent<HTMLDetailsElement>) {
+    setOpen(event.currentTarget.open);
+  }
 
   function applyTemplate(name: TemplateName) {
     const template = TEMPLATES[name];
     setCategory(template.category);
     setBody(template.body);
     setPreview(false);
+    keepOpen();
   }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (bodyExceedsLimit(body)) {
       setMessage(`The body is ${bytes} bytes. The limit is ${BODY_BYTE_LIMIT} bytes (32 KiB).`);
+      keepOpen();
       return;
     }
     const data = new FormData(event.currentTarget);
@@ -52,10 +63,12 @@ export function RootComposer({ slug, idempotencyKey, agents }: {
       if (result && !result.ok) {
         setMessage(result.message);
         setKey(result.idempotencyKey);
+        keepOpen();
       }
     } catch (error) {
       if (isRedirect(error)) throw error;
       setMessage('The post could not be sent. Your title and body are still here.');
+      keepOpen();
     } finally {
       setBusy(false);
     }
@@ -63,6 +76,9 @@ export function RootComposer({ slug, idempotencyKey, agents }: {
 
   const submitRoot = postRootAction.bind(null, slug) as unknown as (formData: FormData) => Promise<void>;
   return (
+    <details open={open} onToggle={onToggle} className="rounded-lg border border-stone-200 bg-white">
+      <summary className="cursor-pointer px-4 py-3 font-medium">New post</summary>
+      <div className="px-4 pb-4">
     <form id="new-root-form" action={submitRoot} onSubmit={onSubmit} className="space-y-4 rounded border p-4">
       <h2 className="text-xl font-semibold">New thread</h2>
       {message ? <p role="alert" className="rounded border border-red-700 p-3">{message}</p> : null}
@@ -102,6 +118,8 @@ export function RootComposer({ slug, idempotencyKey, agents }: {
       <input type="hidden" name="idempotencyKey" value={key} />
       <button type="submit" className="rounded bg-blue-700 px-4 py-2 font-medium text-white" aria-busy={busy}>Post</button>
     </form>
+      </div>
+    </details>
   );
 }
 

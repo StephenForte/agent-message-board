@@ -63,7 +63,7 @@ test('owner creates a project and archives it', async ({ page }) => {
   await page.getByLabel('Slug', { exact: true }).fill(slug);
   await page.getByRole('button', { name: 'Create project', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('Project created.');
-  await expect(page.getByRole('link', { name: 'Created pilot', exact: true })).toBeVisible();
+  await expect(page.locator('#project-index').getByRole('link', { name: 'Created pilot', exact: true })).toBeVisible();
   await page.getByRole('link', { name: 'Settings for Created pilot', exact: true }).click();
   await expect(page.getByText('Archived projects are read-only for posting.')).toBeVisible();
   await page.getByRole('button', { name: 'Archive project', exact: true }).click();
