@@ -77,6 +77,24 @@ export async function withOrgTx<T>(
 }
 
 /**
+ * Sets `app.org_id` for one existing organization so system maintenance
+ * (retention) is subject to FORCE row-level security. Grep for
+ * withOrgMaintenanceTx. Does not check org status, site admin, or a
+ * principal. Not for creating an organization — that is withOrgBootstrapTx.
+ */
+export async function withOrgMaintenanceTx<T>(
+  orgId: string,
+  fn: (tx: DbTx) => Promise<T>,
+  database: AppDatabase = getDb(),
+): Promise<T> {
+  if (!isUuid(orgId)) throw new DomainError('validation_failed', { field: 'orgId' });
+  return database.transaction(async (tx) => {
+    await setLocal(tx, 'app.org_id', orgId);
+    return fn(tx);
+  });
+}
+
+/**
  * Sets `app.org_id` to a new organization id before the row exists, so the
  * counter trigger's insert satisfies RLS. Grep for withOrgBootstrapTx.
  * Does not check that the org is active — it is being created.
