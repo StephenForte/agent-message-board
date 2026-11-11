@@ -32,6 +32,14 @@ async function clearFilters(page: Page) {
   await expect(page).toHaveURL(/\/projects\/[^/?#]+$/);
 }
 
+async function openNewPost(page: Page) {
+  await page.locator('summary', { hasText: 'New post' }).click();
+}
+
+async function openFilters(page: Page) {
+  await page.locator('summary', { hasText: 'Filters' }).click();
+}
+
 async function openBoard(page: Page, email: string, slug: string) {
   await signIn(page, email);
   await page.goto(`/projects/${slug}`);
@@ -44,6 +52,7 @@ test('posts a root from the handoff template with recipients and then a reply', 
   const project = await seedProject(owner);
   await seedAgent(owner, 'reviewer');
   await openBoard(page, owner.email, project.slug);
+  await openNewPost(page);
   await expect(page.getByText('Recipients are routing hints and are not private.')).toBeVisible();
   await page.getByRole('button', { name: 'Use handoff template', exact: true }).click();
   await expect(page.getByLabel('Body')).toHaveValue(/What changed/);
@@ -67,6 +76,7 @@ test('urgent and pinned threads show in those sections', async ({ page }) => {
   const owner = await seedOwner();
   const project = await seedProject(owner);
   await openBoard(page, owner.email, project.slug);
+  await openNewPost(page);
   await page.getByLabel('Title', { exact: true }).fill('Stand up');
   await page.getByLabel('Body').fill('Look at this first.');
   await page.getByRole('checkbox', { name: 'Urgent', exact: true }).check();
@@ -90,6 +100,7 @@ test('archive hides a thread until the archived filter, and restore brings it ba
   await expect(page.locator('#reply-form').getByLabel('Body')).toBeDisabled();
   await page.getByRole('link', { name: 'Back to the board', exact: true }).click();
   await expect(page.locator('#thread-list').getByRole('heading', { name: 'Finished work' })).toHaveCount(0);
+  await openFilters(page);
   await boardFilters(page).getByLabel('Status', { exact: true }).selectOption('archived');
   await page.getByRole('button', { name: 'Apply filters', exact: true }).click();
   await expect(page.locator('#thread-list').getByRole('heading', { name: 'Finished work' })).toBeVisible();
@@ -130,6 +141,7 @@ test('search finds a reply inside its root', async ({ page }) => {
   await page.getByLabel('Body').fill('A zebra crossed the trail.');
   await page.getByRole('button', { name: 'Reply', exact: true }).click();
   await page.goto(`/projects/${project.slug}`);
+  await openFilters(page);
   await page.getByLabel('Search', { exact: true }).fill('zebra');
   await page.getByRole('button', { name: 'Apply filters', exact: true }).click();
   const match = page.locator('#thread-list').getByRole('list', { name: 'Search matches' });
@@ -156,42 +168,49 @@ test('each filter narrows the board', async ({ page }) => {
   await expect(list.getByRole('heading', { name: 'Filter note' })).toBeVisible();
   await expect(list.getByRole('heading', { name: 'Filter archived' })).toHaveCount(0);
 
+  await openFilters(page);
   await boardFilters(page).getByLabel('Status', { exact: true }).selectOption('archived');
   await applyFilters(page, /status=archived/);
   await expect(list.getByRole('heading', { name: 'Filter archived' })).toBeVisible();
   await expect(list.getByRole('heading', { name: 'Filter note' })).toHaveCount(0);
 
   await clearFilters(page);
+  await openFilters(page);
   await boardFilters(page).getByLabel('Category', { exact: true }).selectOption('decision');
   await applyFilters(page, /category=decision/);
   await expect(list.getByRole('heading', { name: 'Filter decision' })).toBeVisible();
   await expect(list.getByRole('heading', { name: 'Filter note' })).toHaveCount(0);
 
   await clearFilters(page);
+  await openFilters(page);
   await boardFilters(page).getByLabel('Author', { exact: true }).selectOption('reviewer');
   await applyFilters(page, /author=/);
   await expect(list.getByRole('heading', { name: 'Filter agent' })).toBeVisible();
   await expect(list.getByRole('heading', { name: 'Filter note' })).toHaveCount(0);
 
   await clearFilters(page);
+  await openFilters(page);
   await boardFilters(page).getByLabel('Author', { exact: true }).selectOption('human');
   await applyFilters(page, /author=human/);
   await expect(list.getByRole('heading', { name: 'Filter note' })).toBeVisible();
   await expect(list.getByRole('heading', { name: 'Filter agent' })).toHaveCount(0);
 
   await clearFilters(page);
+  await openFilters(page);
   await boardFilters(page).getByLabel('Recipient', { exact: true }).selectOption('reviewer');
   await applyFilters(page, /recipient=/);
   await expect(list.getByRole('heading', { name: 'Filter agent' })).toBeVisible();
   await expect(list.getByRole('heading', { name: 'Filter note' })).toHaveCount(0);
 
   await clearFilters(page);
+  await openFilters(page);
   await boardFilters(page).getByLabel('Urgent', { exact: true }).selectOption('yes');
   await applyFilters(page, /urgent=yes/);
   await expect(list.getByRole('heading', { name: 'Filter urgent' })).toBeVisible();
   await expect(list.getByRole('heading', { name: 'Filter note' })).toHaveCount(0);
 
   await clearFilters(page);
+  await openFilters(page);
   await boardFilters(page).getByLabel('Pinned', { exact: true }).selectOption('yes');
   await applyFilters(page, /pinned=yes/);
   await expect(list.getByRole('heading', { name: 'Filter pinned' })).toBeVisible();
@@ -221,6 +240,7 @@ test('hostile Markdown does not execute on the board, thread, search results, or
     await popup.dismiss();
   });
   await openBoard(page, owner.email, project.slug);
+  await openNewPost(page);
   await page.getByLabel('Title', { exact: true }).fill('XSS <script>alert(1)</script>');
   await page.getByLabel('Body').fill(xssCorpus);
   await page.getByRole('button', { name: 'Preview', exact: true }).click();
@@ -234,6 +254,7 @@ test('hostile Markdown does not execute on the board, thread, search results, or
   await expect(page.locator('#thread-content article')).toHaveCount(2);
   await expectNoInjection(page, '#thread-content');
   await page.goto(`/projects/${project.slug}`);
+  await openFilters(page);
   await page.getByLabel('Search', { exact: true }).fill('alert');
   await page.getByRole('button', { name: 'Apply filters', exact: true }).click();
   await expect(page.locator('#board-content')).toContainText('alert');
@@ -245,6 +266,7 @@ test('submitting the same rendered form twice creates one root', async ({ page }
   const owner = await seedOwner();
   const project = await seedProject(owner);
   await openBoard(page, owner.email, project.slug);
+  await openNewPost(page);
   const title = `Once ${newId()}`;
   await page.getByLabel('Title', { exact: true }).fill(title);
   await page.getByLabel('Body').fill('Same body for both submits.');
@@ -269,6 +291,7 @@ test('a draft survives a failed submit and the byte limit', async ({ page }) => 
   const owner = await seedOwner();
   const project = await seedProject(owner);
   await openBoard(page, owner.email, project.slug);
+  await openNewPost(page);
   await page.getByLabel('Title', { exact: true }).fill('Too big');
   await page.getByLabel('Body').fill('a'.repeat(32769));
   await page.getByRole('button', { name: 'Post', exact: true }).click();

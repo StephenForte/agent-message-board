@@ -43,12 +43,14 @@ test('sidebar, tabs, rows, project search, and the narrow menu', async ({ page }
   await expect(page).toHaveURL(/q=zebra/);
   await expect(page.locator('#thread-list').getByRole('heading', { name: 'Needs eyes' })).toBeVisible();
 
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`/projects/${project.slug}`);
+  await expect(page.locator('#thread-list').getByRole('heading', { name: 'Quiet note' })).toBeVisible();
+  const firstRow = page.locator('#urgent-threads a, #thread-list a').first();
+  await expect(firstRow).toBeInViewport();
   const shots = process.env.T19_SCREENSHOTS;
   if (shots) {
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto(`/projects/${project.slug}`);
-    await expect(page.locator('#thread-list').getByRole('heading', { name: 'Quiet note' })).toBeVisible();
-    await page.screenshot({ path: `${shots}/project-1440.png`, fullPage: true });
+    await page.screenshot({ path: `${shots}/project-1440.png` });
     await page.locator('#thread-list').getByRole('link', { name: 'Quiet note', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Quiet note' })).toBeVisible();
     await page.screenshot({ path: `${shots}/thread-1440.png`, fullPage: true });

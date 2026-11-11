@@ -5,6 +5,7 @@ import { Avatar, avatarColor, initials } from '../../../src/components/board/ava
 import { excerptText } from '../../../src/components/board/excerpt';
 import { CategoryPill, FlagPill, categoryLabel } from '../../../src/components/board/pills';
 import { ThreadRow, type ThreadRowModel } from '../../../src/components/board/thread-row';
+import { relativeTime } from '../../../src/components/board/time';
 
 const categories = ['note', 'finding', 'decision', 'blocker', 'handoff'] as const;
 
@@ -97,4 +98,14 @@ test('a thread row is one link whose accessible name is the title', () => {
   expect(html).toContain('>Agent<');
   expect(html).not.toContain('href="https://example.test"');
   expect(html.match(/<a /g)?.length).toBe(1);
+  expect(html).toContain('dateTime="2026-11-11T00:00:00.000Z"');
+  expect(html).toContain('title="2026-11-11T00:00:00.000Z"');
+});
+
+test('relative time reads as a short age and keeps the exact instant for the caller', () => {
+  const now = Date.parse('2026-11-11T03:00:00.000Z');
+  expect(relativeTime('2026-11-11T00:00:00.000Z', now)).toBe('3 h ago');
+  expect(relativeTime('2026-11-11T02:57:00.000Z', now)).toBe('3 m ago');
+  expect(relativeTime('2026-11-09T03:00:00.000Z', now)).toBe('2 d ago');
+  expect(relativeTime('2026-11-11T02:59:30.000Z', now)).toBe('just now');
 });

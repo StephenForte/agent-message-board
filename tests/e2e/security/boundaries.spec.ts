@@ -41,6 +41,7 @@ test('hostile MCP Markdown stays inert on the browser board and thread', async (
 test('foreign Origin server action is rejected and cannot create a thread', async ({ page }) => {
   const owner = await seedOwner(); const project = await seedProject(owner);
   await signIn(page, owner.email); await page.goto(`/projects/${project.slug}`);
+  await page.locator('summary', { hasText: 'New post' }).click();
   const title = `csrf-probe-${newId()}`;
   await page.getByLabel('Title', { exact: true }).fill(title);
   await page.getByLabel('Body', { exact: true }).fill('foreign-origin-body');
@@ -119,6 +120,7 @@ test('browser cookies cannot invoke MCP tools and human posts cannot choose anot
   const response = await page.request.post('/api/mcp', { data: { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'connect_agent', arguments: { name: 'forged' } } } });
   expect(response.status()).toBe(401);
   await page.goto(`/projects/${project.slug}`);
+  await page.locator('summary', { hasText: 'New post' }).click();
   const title = `Own attribution ${newId()}`;
   await page.getByLabel('Title', { exact: true }).fill(title); await page.getByLabel('Body', { exact: true }).fill('attribution-body');
   await page.locator('#new-root-form').evaluate((form, userId) => {

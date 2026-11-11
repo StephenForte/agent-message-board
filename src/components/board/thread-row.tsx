@@ -1,6 +1,7 @@
 import { excerptText } from './excerpt';
 import { Avatar } from './avatar';
 import { CategoryPill, FlagPill } from './pills';
+import { TimeStamp } from './time';
 
 export type ThreadRowModel = {
   id: string;
@@ -33,7 +34,7 @@ export function ThreadRow({ thread, headingId }: { thread: ThreadRowModel; headi
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-start justify-between gap-2" aria-hidden="true">
           <Avatar name={thread.authorName} kind={thread.authorKind} />
-          <time dateTime={thread.lastActivityAt} className="text-xs text-stone-500">{thread.lastActivityAt}</time>
+          <TimeStamp iso={thread.lastActivityAt} className="text-xs text-stone-500" />
         </span>
         <h3 id={headingId} className="mt-2 break-words text-base font-semibold text-stone-950">{thread.title}</h3>
         {excerpt ? <p className="excerpt-clamp mt-1 text-sm text-stone-600" aria-hidden="true">{excerpt}</p> : null}

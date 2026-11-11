@@ -52,19 +52,14 @@ async function BoardContents({ params, searchParams }: {
     <div id="board-content" className="space-y-8">
       <a className="underline" href={`${projectPath(slug)}/briefing`}>View agent briefing</a>
       <BoardTabs slug={slug} filters={filters} />
-      <details open className="rounded-lg border border-stone-200 bg-white">
+      <details className="rounded-lg border border-stone-200 bg-white" {...(filtersAreDefault(filters) ? {} : { open: true })}>
         <summary className="cursor-pointer px-4 py-3 font-medium">Filters</summary>
         <div className="px-4 pb-4">
           <Filters slug={slug} filters={filters} agents={agents} />
         </div>
       </details>
       {project.status === 'active' ? (
-        <details open className="rounded-lg border border-stone-200 bg-white">
-          <summary className="cursor-pointer px-4 py-3 font-medium">New post</summary>
-          <div className="px-4 pb-4">
-            <RootComposer slug={slug} idempotencyKey={randomUUID()} agents={agents} />
-          </div>
-        </details>
+        <RootComposer slug={slug} idempotencyKey={randomUUID()} agents={agents} />
       ) : null}
       {urgent ? (
         <ThreadSection id="urgent-threads" title="Urgent" empty="No urgent threads." threads={urgent} slug={slug} filters={filters}

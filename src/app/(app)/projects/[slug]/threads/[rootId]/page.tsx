@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { Avatar } from '../../../../../../components/board/avatar';
 import { CategoryPill, FlagPill } from '../../../../../../components/board/pills';
+import { TimeStamp } from '../../../../../../components/board/time';
 import { Markdown } from '../../../../../../components/markdown/Markdown';
 import { listAgents, listTokens } from '../../../../../../domain/credentials';
 import { prefixLabel } from '../../../../tokens/format';
@@ -99,8 +100,8 @@ async function ThreadContents({ params, searchParams }: {
           <li>Pinned: {root.pinned ? 'yes' : 'no'}</li>
           <li>Version: {root.version}</li>
         </ul>
-        <p>Posted <time dateTime={root.createdAt}>{root.createdAt}</time></p>
-        <p>Updated <time dateTime={root.updatedAt}>{root.updatedAt}</time></p>
+        <p>Posted <TimeStamp iso={root.createdAt} /></p>
+        <p>Updated <TimeStamp iso={root.updatedAt} /></p>
         {root.recipients.length > 0 ? (
           <ul aria-label="Recipients">{root.recipients.map((recipient) => <li key={recipient.id}>{recipient.name}</li>)}</ul>
         ) : <p>No recipients</p>}
@@ -114,7 +115,7 @@ async function ThreadContents({ params, searchParams }: {
         {thread.replies.length === 0 ? <p>No replies yet.</p> : thread.replies.map((reply) => (
           <article key={reply.id} className="space-y-2 rounded-lg border border-stone-200 bg-white p-4">
             <AuthorBlock kind={reply.authorKind} name={reply.authorDisplayName} tokenId={reply.authorTokenId} prefixes={prefixes} />
-            <p><time dateTime={reply.createdAt}>{reply.createdAt}</time></p>
+            <p><TimeStamp iso={reply.createdAt} /></p>
             {reply.recipients.length > 0 ? (
               <ul aria-label="Recipients">{reply.recipients.map((recipient) => <li key={recipient.id}>{recipient.name}</li>)}</ul>
             ) : <p>No recipients</p>}
@@ -134,7 +135,7 @@ async function ThreadContents({ params, searchParams }: {
           <ol className="space-y-2">
             {history.map((row) => (
               <li key={row.id}>
-                <time dateTime={row.createdAt}>{row.createdAt}</time>
+                <TimeStamp iso={row.createdAt} />
                 {' '}{row.actorKind === 'human' ? 'Human' : row.actorKind === 'agent' ? 'Agent' : 'System'}
                 {' via '}{row.interfaceKind}
                 {' '}{formatFlagState(row.before)} → {formatFlagState(row.after)}
