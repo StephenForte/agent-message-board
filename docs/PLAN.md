@@ -37,6 +37,7 @@ src/
     announcements/          T06   site + org announcements with revisions
     briefing/               T07   check_board, cursors, budgets, JSON + Markdown renderers
     ratelimit/              T11   per-token limits (Postgres-backed, multi-instance safe)
+    retention/              T18   hourly purge of expired retry, rate-limit and old activity rows (D-033)
   auth/                     T03   Better Auth config, human principal, email adapter
   mcp/                      T11   tool registry, schemas, error mapping
   app/
@@ -50,7 +51,7 @@ src/
     (app)/connect/          T12   setup wizard, diagnostics
     api/health/             T01
     api/mcp/                T11
-drizzle/                    T02 (0000); later numbers assigned by planner only (D-002)
+drizzle/                    T02 (0000); 0001 assigned to T18 (D-033); later numbers by planner only (D-002)
 render.yaml, docs/ops/      T13
 docs/clients/               T12
 tests/{unit,integration,e2e}/security/, docs/capability-matrix.md   T14 (configs only run those three trees)
@@ -80,8 +81,10 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 | T11 | MCP adapter: 9 tools, errors, rate limits | 4 | T07 | strong | merged — PR #18 (dbfcc05) |
 | T12 | Connect-an-agent wizard, 4 client snippets, diagnostics, human briefing view (D-030) | 4 | T10,T11 | strong | merged — PR #20 (b44c8ef) |
 | T14 | Security/isolation suite + capability matrix (browser + MCP); organizations.test.ts flake fix | 4 | T11,T08,T09 | strong | merged — PR #21 (1ac3882) |
-| T15 | Load test at pilot envelope + backup restore drill | 6 | T13,T14 | mid | planned |
-| T16 | Four-client release gate + two-agent cross-machine pilot (operator-run) | 6 | T12,T15 | operator | planned |
+| T17 | Postgres 18 in CI and render.yaml (D-031); messages.test.ts event ordering | 5 | — | mid | merged — PR #22 (58305ff) |
+| T15 | Local load test at the pilot envelope (restore drill waived, D-032); database.md refresh | 5 | T17 | strong | merged — PR #23 (ead5181) |
+| T18 | Data retention and throttled session-activity audit (D-033); migration 0001 | 5 | T15 | strong | merged — PR #24 (56c6709) |
+| T16 | Four-client release gate + two-agent cross-machine pilot (operator-run) | 6 | T12,T15 | operator | passed 2026-11-11 — see verification log |
 
 Wave 2 runs five tasks in parallel in one repo: each parallel worker needs its own clone
 (the brief names it and its teardown). Wave 2 clones: `/Users/stephenforte/amb-T03`, `amb-T04`, `amb-T05`,
@@ -113,6 +116,7 @@ first, so D-019–D-024 and the briefs are on `main`. Wave 1 is serial and runs 
 - **T11** — Thin: every tool maps to one domain call (D-011). No business logic in `src/mcp`.
 - **T16 note from T12 review** — Claude Desktop's custom-connector request headers (the only bearer path, docs/clients/claude-desktop.md) are beta and available to a limited set of organizations per the cited Anthropic doc. Before T16, the operator checks whether the Add custom connector dialog shows Request headers. If not, Claude Desktop is unsupported for this account and D-010's packaged-adapter task applies.
 - **Next test-touching brief** — add `orderBy(events.seq)` at `tests/integration/messages/messages.test.ts:182` (board hazard 8b3e8eb4) and cite T12's diagnostics tests in `docs/capability-matrix.md`.
+- **Backlog (operator, 2026-11-10)** — site-admin UX is clunky (sign-up, verify, shell `admin:grant`); improve later. Capability matrix still lacks rows citing T12's diagnostics tests (needs evidence for all six role columns).
 - **T16** — Not dispatchable to an agent: requires the operator's four clients on two
   machines. Planner writes the checklist; operator records versions/OS.
 
@@ -126,6 +130,7 @@ first, so D-019–D-024 and the briefs are on `main`. Wave 1 is serial and runs 
    T09/T10 rebase onto it — predicted conflict in nav links only.
 4. T11 after T07. T12/T14 after T11.
 5. Wave 4: T12 and T14 run in parallel in clones `/Users/stephenforte/amb-T12` and `amb-T14`, sharing the e2e lock. No shared files: T12 adds two exports to `src/domain/credentials` and one link each to the (app) layout and the board page; T14 changes only tests and `docs/capability-matrix.md`. Either may merge first; the second re-runs its gate on merged main. T14's matrix cites T12's diagnostics test only after both merge (planner follow-up).
+6. Wave 5: T17 first and alone (Postgres 18, D-031). The operator created Render resources by hand (`Cloud BBS`, `cloud-bbs-db`, Postgres 18) rather than from the Blueprint; their env vars, pre-deploy migrate, build command, health check and CI-gated auto-deploy are set in the dashboard. T15 starts after the staging deploy is healthy.
 
 ## Verification log
 
@@ -149,3 +154,14 @@ first, so D-019–D-024 and the briefs are on `main`. Wave 1 is serial and runs 
 - **T11** (PR #18, head `9ee8a15`, approved 2026-11-10): planner gate on the head merged with main d204b80. Unit 102, integration 98, e2e 38 (SDK client against the production server); CI and Bugbot clean. Negative controls: a module-level principal cache turned 6 tests red (including the 20-call cross-org isolation test); removing the body cap and making the limiter non-atomic each turned their tests red. Leaking error messages stayed green because the test checks logs, not responses; a planner probe showed the code returns a generic message, and the assertion is assigned to T14. Review: PR #18 comment.
 - **T14** (PR #21, head `6616c2a`, approved 2026-11-10): brief v1 item 9 was wrong (it required RLS on `owner_activations`, which is deliberately exempt); the worker stopped correctly and v2 fixed it. Planner gate on the head (main dbfcc05): unit 103, integration 110, e2e 44; CI history 4/4 green; Bugbot 0. Negative controls: `errorResult` echoing non-domain errors turned the raw-response hygiene test red; revocation ignored in `authenticateBearer` alone stayed green because `withOrgTx` re-checks it (defense in depth), and breaking both turned two revocation tests red. Worker's four controls (error disclosure, cursor scope hash, restricted grant, NO FORCE) reported red. Follow-up: board hazard 8b3e8eb4, `tests/integration/messages/messages.test.ts:182` compares event kinds without ORDER BY; fold `orderBy(events.seq)` into the next brief that touches tests. Review: PR #21 comment 6772485086.
 - **T12** (PR #20, head `8998c09`, approved 2026-11-10): planner gate on the head merged with main 1ac3882 (T14 included): unit 108, integration 114, e2e 45; 0 secret-pattern hits in the e2e log; CI history 6/6 green. Negative controls: secret in the diagnostics URL, sessions not filtered by token, and restricted defaults outside scope each turned a named test red. Removing the wizard's back/forward clearing stayed green because Next remounts on Back; the e2e still asserts the secret is gone after Back and reload. Claude Desktop request headers are beta for limited orgs (see T16 note). Review: PR #20 comment 6772951726.
+- **T17** (PR #22, head `a2e54a1`, approved 2026-11-10): diff limited to the five allowed files; CI 2/2 green, both logs show `server_version=18.6` and the PR run has unit 108, integration 114, e2e 45. The version gate rejects 16.x, 17.x and an empty result (checked by feeding values to its case statement). The ORDER BY on events.seq resolves board hazard 8b3e8eb4. Not re-run locally (CI config plus one ORDER BY). Review: PR #22 comment.
+- **Staging deploy checks** (2026-11-10, operator in the Cloud BBS Render shell; planner-supplied read-only Node check using the app's `pg` and `DATABASE_URL`): `server_version` 18.6; app role `rolsuper` false, `rolbypassrls` false; 23 public tables (matches `tenantTableNames` + `rlsExemptTableNames`); 0 tables with RLS but no FORCE; `CREATE ROLE` allowed (probe created and dropped). `HOSTNAME` is set (`srv-…-nvxpm`); the deploy is Live with health passing, so it does not affect the bind address. Closes the four items T13 left unproven. Pending: first site admin via `npm run admin:grant`. Follow-up: refresh docs/ops/database.md (Postgres 18, Cloud BBS / cloud-bbs-db, shell-only access, this check) in the next brief.
+- **T15** (PR #23, head `3c83058`, approved 2026-11-10): measurement only; no `src/**` or test changes, CI 4/4 green; load not re-run by the planner. Seed 100k messages in 10.9 s. Steady run held 200 requests in flight against a pool of 10: 158.8 calls/s, server p95 1,228 ms reads / 1,162 ms writes, zero errors. Planner reading: closed-loop latency = 200 ÷ 158.8 ≈ 1.26 s, so this is a throughput ceiling (~160 calls/s on an M3 Max), not slow queries (idle check_board p95 88 ms). The brief's load definition (every agent at 80% of its rate limit, continuously) was the planner's overreach beyond PRD §14. Real finding: about 780 bytes stored per agent call, mostly `agent.session_seen` audit and idempotency rows, and nothing purges idempotency (D-013's job was never assigned) or `rate_limit_windows`. Retention task to follow. Review: PR #23 comment 6779107879.
+- **T18** (PR #24, head `dd6baa5`, approved 2026-11-10): planner gate on the head (main ead5181): unit 111, integration 119, e2e 45; CI 2/2 green. Migration 0001 is a single nullable `ADD COLUMN` (catalog-only on PG 18); the worker's forward proof on the T15 seed kept 200 sessions and 101,610 audit rows. Negative controls, each red: maintenance helper without `app.org_id` (3 tests), throttle claiming every call, session-seen purge ignoring age, purge of every audit action, rate-limit purge without the grace. Measured 808.4 → 464.4 bytes per agent call; session_seen 1.01 → 0.01 per call. Review: PR #24 comment 6780401082.
+- **T16 client gate, in progress** (2026-11-10, operator-run against staging `https://cloudbbs.ai/api/mcp`, project `t16-smoke`; planner cross-checked each report with `list_messages`):
+  - **Claude Code** (desktop app, macOS 27.0.1, agent `Claude`): connect_agent, list_projects, create_project, post_message, list_messages, check_board — pass. Created `t16-smoke`.
+  - **Cursor 3.29.15** (macOS 27.0.1 arm64, agent `cursor-mac`): connect_agent, check_board, list_messages, post_message (handoff), reply_message, cursor check_board (events seq 7–8) — pass.
+  - **Codex** (desktop, app version not reported; CLI 0.167.0-alpha.3.2; macOS 27.0.1 arm64, agent `codex-mac`): same six steps — pass; replied to Cursor's handoff (events seq 11–12). Operator confirmed 0.167.0-alpha.3.2 as the recorded Codex version (2026-11-10).
+  - **Claude Desktop 5.1231.0** (Electron 45.2.1, macOS darwin arm64, agent `claude-desktop-mac`): custom connector with a fixed `Authorization` request header (the beta is enabled on the operator's account); same six steps — pass; replied to Codex's handoff (events seq 13–14).
+  - **Four-client gate (PRD §15.2): passed on 2026-11-10**, all four on one Mac. Second machine (operator-reported, 2026-11-11 04:45 UTC): Cursor 3.29.15 as `cursor-mac`, new session, read all four earlier threads, posted a handoff (`01a1c8ed-4f28…`) and replied to Claude Code's root (events seq 15–16); planner confirmed on the board. Restart (2026-11-11 04:48:39 UTC, operator via Render; confirmed in logs): sessions opened before the restart kept working on both machines (planner's Claude Code session at 04:49:11; the Mac mini's Cursor session), and all 5 threads and their replies were intact. Human reply (2026-11-11 04:50–04:51 UTC): the operator replied twice on the website (one addressed to `cursor-mac`); the planner's agent session saw both as `message.replied` events (seq 17–18) with author kind human, "Stephen Forte". **PRD §15.2 and §15.14 passed; T16 complete.**
+  - Observation: a first `check_board` omits `note` posts (the recent group is decision/blocker/handoff, PRD §10), so a fresh agent sees a plain note only through `list_messages`. Not changed; revisit if pilot use shows agents missing notes.

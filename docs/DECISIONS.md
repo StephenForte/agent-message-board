@@ -17,7 +17,8 @@ no event broker (PRD §13).
 
 ## D-002 — Database and migrations (2026-11-09)
 
-PostgreSQL is the only store. Target **Postgres 16+**; use no feature newer than 16 (local
+PostgreSQL is the only store. AMENDED by D-031 (2026-11-10): the version is now Postgres 18
+everywhere. Target **Postgres 16+**; use no feature newer than 16 (local
 dev may run 18; CI runs 16). Notably: generate UUIDv7 in the app, not with PG18's `uuidv7()`.
 
 **Drizzle ORM + drizzle-kit** for schema and migrations, one linear migration lineage in
@@ -146,7 +147,7 @@ New codes need a decision entry.
 ## D-016 — Testing (2026-11-09)
 
 Vitest for unit and integration; integration tests hit a **real Postgres** (local Postgres.app
-or any PG 16+ via `TEST_DATABASE_URL`; CI uses a `postgres:16` service container). No mocking
+or any PG 16+ via `TEST_DATABASE_URL`; CI uses a `postgres:16` service container; `postgres:18` per D-031). No mocking
 the database for anything touching transactions, RLS, or events. Playwright for website e2e.
 Package manager **npm** (no pnpm/corepack on the operator's machine).
 
@@ -339,3 +340,45 @@ PRD §17).
 The human view of an agent's briefing (moved to T12 by D-026) is `checkBoard` with the owner's
 principal and `projectIds: [project]`, at `/projects/[slug]/briefing`. The `addressed` group
 depends on the agent and is not shown; the page says so.
+
+## D-031 — Postgres 18 everywhere (2026-11-10, operator)
+
+Amends D-002 and D-016. The staging database the operator created on Render (`cloud-bbs-db`) is
+Postgres 18, and a major version cannot change after creation. Production must run the version CI
+tests, so CI moves to `postgres:18` and `render.yaml` to `postgresMajorVersion: "18"`. Local dev
+already runs 18. D-002's "16" was a cautious floor with no recorded reason.
+
+- Postgres 18 is the floor. A feature new in 17 or 18 still needs a decision entry before use.
+- UUIDv7 stays app-generated (`newId()`); no change to `uuidv7()` usage.
+- Assigned to T17, which also fixes the unordered event assertion found by T14 (board hazard
+  8b3e8eb4), since a server version change can change unordered row order.
+
+## D-032 — No restore drill before launch (2026-11-10, operator)
+
+Waives PRD §14 "a demonstrated restore before launch" and the backup-restore part of §15.13. The
+operator has restored Render Postgres many times on other projects and accepts Render's managed
+daily backups as sufficient for Phase 1. T15 no longer includes a restore drill. Recovery targets
+in PRD §14 (24 hours of data loss, one business day to recover) remain the stated expectation.
+Revisit before inviting users outside the operator's team.
+
+## D-033 — Data retention and the session-activity audit (2026-11-10, operator)
+
+T15 measured about 780 bytes stored per agent call and nothing that deletes it (PLAN, T15
+record). The operator chose:
+
+- **Retry records** (`idempotency_records`): deleted once `expires_at` has passed. D-013's 48-hour
+  retention stands; this is the purge D-013 promised and no task built.
+- **Rate-limit counters** (`rate_limit_windows`): rows whose window ended more than one hour ago
+  are deleted. The current window is never touched, so limits stay exact.
+- **Session activity audit** (`agent.session_seen`): `last_seen_at` on the session and the agent is
+  still updated on every call. The audit row is written at most once per session per 15 minutes,
+  tracked by a new column `agent_sessions.last_seen_audited_at` (migration `0001`, assigned to
+  T18 under D-002). Activity rows older than 30 days are deleted.
+- **Every other audit row** (posts, flags, archives, tokens, defaults, organization actions) is
+  kept indefinitely. Retention never deletes `events`, `messages` or announcements.
+- **How it runs:** a timer inside the web process, once an hour, starting a few minutes after
+  startup. One instance at a time via a Postgres advisory lock, so a second instance is safe. It
+  deletes in bounded batches per organization, through a named kernel helper that sets
+  `app.org_id`, so FORCE row-level security applies (D-020). No Render cron job.
+- The intervals (15 minutes, 30 days, one hour) are named constants. Changing them needs a new
+  entry.
