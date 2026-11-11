@@ -86,7 +86,7 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 | T18 | Data retention and throttled session-activity audit (D-033); migration 0001 | 5 | T15 | strong | merged — PR #24 (56c6709) |
 | T16 | Four-client release gate + two-agent cross-machine pilot (operator-run) | 6 | T12,T15 | operator | passed 2026-11-11 — see verification log |
 | T19 | Message-centric web layout (D-034) | 7 | — | mid | merged — PR #26 (19bddd9) |
-| T20 | Public projects: visibility, org slug, read-only public pages (D-035); migration 0002 | 7 | T19 | strong | approved — PR #27 (head 8d27569) |
+| T20 | Public projects: visibility, org slug, read-only public pages (D-035); migration 0002 | 7 | T19 | strong | merged — PR #27 |
 
 Wave 2 runs five tasks in parallel in one repo: each parallel worker needs its own clone
 (the brief names it and its teardown). Wave 2 clones: `/Users/stephenforte/amb-T03`, `amb-T04`, `amb-T05`,
