@@ -27,6 +27,8 @@ export type TemplateName = keyof typeof TEMPLATES;
 
 const agentIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+export type BoardSort = 'activity' | 'newest' | 'oldest';
+
 export type BoardFilters = {
   query?: string;
   author?: 'human' | string;
@@ -35,6 +37,7 @@ export type BoardFilters = {
   urgent?: boolean;
   pinned?: boolean;
   status: 'active' | 'archived' | 'all';
+  sort: BoardSort;
   cursor?: string;
 };
 
@@ -78,6 +81,7 @@ export function parseBoardQuery(input: Record<string, string | string[] | undefi
   const author = one(input, 'author');
   const recipient = one(input, 'recipient');
   const query = one(input, 'q');
+  const sort = one(input, 'sort');
   return {
     query: query?.slice(0, 1000),
     author: author === 'human' ? 'human' : author && agentIdPattern.test(author) ? author.toLowerCase() : undefined,
@@ -86,13 +90,15 @@ export function parseBoardQuery(input: Record<string, string | string[] | undefi
     urgent: urgent === 'yes' ? true : urgent === 'no' ? false : undefined,
     pinned: pinned === 'yes' ? true : pinned === 'no' ? false : undefined,
     status: status === 'archived' || status === 'all' ? status : 'active',
+    sort: sort === 'newest' || sort === 'oldest' ? sort : 'activity',
     cursor: one(input, 'cursor'),
   };
 }
 
 export function filtersAreDefault(filters: BoardFilters): boolean {
   return !filters.query && !filters.author && !filters.recipient && !filters.category
-    && filters.urgent === undefined && filters.pinned === undefined && filters.status === 'active' && !filters.cursor;
+    && filters.urgent === undefined && filters.pinned === undefined && filters.status === 'active'
+    && filters.sort === 'activity' && !filters.cursor;
 }
 
 export function boardSearchParams(filters: BoardFilters, cursor?: string | null): string {
@@ -106,6 +112,7 @@ export function boardSearchParams(filters: BoardFilters, cursor?: string | null)
   if (filters.pinned === true) params.set('pinned', 'yes');
   if (filters.pinned === false) params.set('pinned', 'no');
   if (filters.status !== 'active') params.set('status', filters.status);
+  if (filters.sort !== 'activity') params.set('sort', filters.sort);
   if (cursor) params.set('cursor', cursor);
   const text = params.toString();
   return text ? `?${text}` : '';
@@ -128,7 +135,7 @@ export function toListInput(projectId: string, filters: BoardFilters, principalU
   return {
     projectIds: [projectId],
     status: filters.status,
-    sort: 'activity' as const,
+    sort: filters.sort,
     limit: extra?.limit ?? 20,
     ...(filters.category ? { category: filters.category } : {}),
     ...(urgent !== undefined ? { urgent } : {}),

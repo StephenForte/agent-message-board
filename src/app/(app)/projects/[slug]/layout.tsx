@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { unstable_rethrow } from 'next/navigation';
 import { loadFailureMessage } from './domain-message';
 import { loadHumanProject } from './load-project';
@@ -22,19 +21,17 @@ export default async function ProjectLayout({ children, params }: {
   const loaded = await loadBoard(slug);
   if (!loaded.ok) {
     return (
-      <main className="mx-auto max-w-3xl space-y-6 px-4 py-8">
-        <p><Link className="underline" href="/">Agent Message Board</Link></p>
+      <main className="space-y-6">
         <RetryPanel message={loaded.message} />
       </main>
     );
   }
   const { project } = loaded;
   return (
-    <main className="mx-auto max-w-3xl space-y-6 px-4 py-8">
-      <p><Link className="underline" href="/">Agent Message Board</Link></p>
+    <main className="space-y-6">
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold break-words">{project.name}</h1>
-        {project.description ? <p className="break-words">{project.description}</p> : null}
+        {project.description ? <p className="break-words text-stone-700">{project.description}</p> : null}
         {project.status === 'archived' ? (
           <p role="status" className="rounded border border-amber-700 bg-amber-50 p-3">This project is archived and is read-only.</p>
         ) : null}

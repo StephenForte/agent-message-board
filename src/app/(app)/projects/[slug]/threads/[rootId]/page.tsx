@@ -1,8 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
+import { Avatar } from '../../../../../../components/board/avatar';
+import { CategoryPill, FlagPill } from '../../../../../../components/board/pills';
+import { TimeStamp } from '../../../../../../components/board/time';
 import { Markdown } from '../../../../../../components/markdown/Markdown';
-import { listAgents } from '../../../../../../domain/credentials';
+import { listAgents, listTokens } from '../../../../../../domain/credentials';
+import { prefixLabel } from '../../../../tokens/format';
 import { DomainError } from '../../../../../../domain/kernel';
 import { getThread, getThreadHistory } from '../../../../../../domain/messages';
 import { ReplyComposer } from '../../composer';
@@ -15,6 +19,20 @@ import type { FlagSnapshot } from './actions';
 function flagSnapshot(status: 'active' | 'archived', urgent: boolean | null, pinned: boolean | null, version: number | null): FlagSnapshot | null {
   if (typeof urgent !== 'boolean' || typeof pinned !== 'boolean' || typeof version !== 'number') return null;
   return { status, urgent, pinned, version };
+}
+
+function AuthorBlock({ kind, name, tokenId, prefixes }: {
+  kind: string;
+  name: string;
+  tokenId: string | null;
+  prefixes: Map<string, string>;
+}) {
+  const prefix = kind === 'agent' && tokenId ? prefixes.get(tokenId) : undefined;
+  return <div className="space-y-1">
+    <Avatar name={name} kind={kind} />
+    <p>{authorLabel(kind, name)}</p>
+    {prefix ? <p>Token prefix {prefixLabel(prefix)}</p> : null}
+  </div>;
 }
 
 function one(value: string | string[] | undefined): string | undefined {
@@ -58,25 +76,32 @@ async function ThreadContents({ params, searchParams }: {
   }
   if (thread.project.slug !== project.slug) notFound();
   const history = await getThreadHistory(principal, rootId);
-  const agents = (await listAgents(principal)).map((agent) => ({ id: agent.id, name: agent.name }));
+  const [agentRows, tokenRows] = await Promise.all([listAgents(principal), listTokens(principal)]);
+  const agents = agentRows.map((agent) => ({ id: agent.id, name: agent.name }));
+  const prefixes = new Map(tokenRows.map((token) => [token.id, token.prefix]));
   const root = thread.root;
   const snapshot = root.status === 'active' || root.status === 'archived' ? flagSnapshot(root.status, root.urgent, root.pinned, root.version) : null;
   const projectReadOnly = project.status === 'archived';
   return (
     <div id="thread-content" className="space-y-8">
       <p><a className="underline" href={projectPath(slug)}>Back to the board</a></p>
-      <article className="space-y-3">
+      <article className="space-y-3 rounded-lg border border-stone-200 bg-white p-4">
         <h2 className="text-2xl font-semibold break-words">{root.title}</h2>
-        <p>{authorLabel(root.authorKind, root.authorDisplayName)}</p>
+        <AuthorBlock kind={root.authorKind} name={root.authorDisplayName} tokenId={root.authorTokenId} prefixes={prefixes} />
         <p>Category: {root.category ?? 'note'}</p>
+        <p className="flex flex-wrap gap-1.5">
+          <CategoryPill category={root.category ?? 'note'} />
+          {root.urgent ? <FlagPill>Urgent</FlagPill> : null}
+          {root.pinned ? <FlagPill>Pinned</FlagPill> : null}
+        </p>
         <ul aria-label="Flags">
           <li>Status: {root.status}</li>
           <li>Urgent: {root.urgent ? 'yes' : 'no'}</li>
           <li>Pinned: {root.pinned ? 'yes' : 'no'}</li>
           <li>Version: {root.version}</li>
         </ul>
-        <p>Posted <time dateTime={root.createdAt}>{root.createdAt}</time></p>
-        <p>Updated <time dateTime={root.updatedAt}>{root.updatedAt}</time></p>
+        <p>Posted <TimeStamp iso={root.createdAt} /></p>
+        <p>Updated <TimeStamp iso={root.updatedAt} /></p>
         {root.recipients.length > 0 ? (
           <ul aria-label="Recipients">{root.recipients.map((recipient) => <li key={recipient.id}>{recipient.name}</li>)}</ul>
         ) : <p>No recipients</p>}
@@ -88,9 +113,9 @@ async function ThreadContents({ params, searchParams }: {
       <section className="space-y-4" aria-labelledby="replies-heading">
         <h2 id="replies-heading" className="text-xl font-semibold">Replies ({thread.replyCount})</h2>
         {thread.replies.length === 0 ? <p>No replies yet.</p> : thread.replies.map((reply) => (
-          <article key={reply.id} className="space-y-2 rounded border p-4">
-            <p>{authorLabel(reply.authorKind, reply.authorDisplayName)}</p>
-            <p><time dateTime={reply.createdAt}>{reply.createdAt}</time></p>
+          <article key={reply.id} className="space-y-2 rounded-lg border border-stone-200 bg-white p-4">
+            <AuthorBlock kind={reply.authorKind} name={reply.authorDisplayName} tokenId={reply.authorTokenId} prefixes={prefixes} />
+            <p><TimeStamp iso={reply.createdAt} /></p>
             {reply.recipients.length > 0 ? (
               <ul aria-label="Recipients">{reply.recipients.map((recipient) => <li key={recipient.id}>{recipient.name}</li>)}</ul>
             ) : <p>No recipients</p>}
@@ -110,7 +135,7 @@ async function ThreadContents({ params, searchParams }: {
           <ol className="space-y-2">
             {history.map((row) => (
               <li key={row.id}>
-                <time dateTime={row.createdAt}>{row.createdAt}</time>
+                <TimeStamp iso={row.createdAt} />
                 {' '}{row.actorKind === 'human' ? 'Human' : row.actorKind === 'agent' ? 'Agent' : 'System'}
                 {' via '}{row.interfaceKind}
                 {' '}{formatFlagState(row.before)} → {formatFlagState(row.after)}
