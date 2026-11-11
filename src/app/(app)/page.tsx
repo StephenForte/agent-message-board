@@ -19,23 +19,24 @@ export default async function OrgHomePage({ searchParams }: { searchParams: Prom
   } catch (error) {
     raiseDomain(error);
   }
-  let results: Awaited<ReturnType<typeof listThreads>> | null = null;
-  let recent = new Map<string, Awaited<ReturnType<typeof listThreads>>['items']>();
+  type Listed = Awaited<ReturnType<typeof listThreads>>;
+  let results: Listed | null = null;
+  const recent = new Map<string, Listed['items']>();
   try {
-    if (query && home.projects.length > 0) {
-      results = await listThreads(principal, {
-        projectIds: home.projects.map((project) => project.id),
-        status: 'active',
-        sort: 'activity',
-        limit: 20,
-        query,
-      });
+    const projectIds = home.projects.map((project) => project.id);
+    if (projectIds.length > 0) {
+      const [searchPage, recentPage] = await Promise.all([
+        query ? listThreads(principal, { projectIds, status: 'active', sort: 'activity', limit: 20, query }) : Promise.resolve(null),
+        listThreads(principal, { projectIds, status: 'active', sort: 'activity', limit: 100 }),
+      ]);
+      results = searchPage;
+      for (const item of recentPage.items) {
+        const rows = recent.get(item.projectId) ?? [];
+        if (rows.length >= 3) continue;
+        rows.push(item);
+        recent.set(item.projectId, rows);
+      }
     }
-    const listed = await Promise.all(home.projects.map(async (project) => {
-      const page = await listThreads(principal, { projectIds: [project.id], status: 'active', sort: 'activity', limit: 3 });
-      return [project.id, page.items] as const;
-    }));
-    recent = new Map(listed);
   } catch (error) {
     raiseDomain(error);
   }

@@ -59,6 +59,7 @@ export function Filters({ slug, filters, agents }: {
         </select>
       </div>
       <div className="flex items-end gap-3">
+        {filters.sort !== 'activity' ? <input type="hidden" name="sort" value={filters.sort} /> : null}
         <button type="submit" className="rounded bg-blue-700 px-4 py-2 font-medium text-white">Apply filters</button>
         <Link className="underline" href={`${projectPath(slug)}${boardSearchParams({ status: 'active', sort: 'activity' })}`}>Clear filters</Link>
       </div>

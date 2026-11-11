@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test } from 'vitest';
+import { Filters } from '../../../src/app/(app)/projects/[slug]/filters';
 import { Avatar, avatarColor, initials } from '../../../src/components/board/avatar';
 import { excerptText } from '../../../src/components/board/excerpt';
 import { CategoryPill, FlagPill, categoryLabel } from '../../../src/components/board/pills';
@@ -69,6 +70,14 @@ test('excerpt stays plain text and truncates with an ellipsis', () => {
   expect(rendered).not.toContain('<script');
   expect(rendered).toContain('&lt;script&gt;');
   expect(rendered).not.toContain('href="https://example.test"');
+});
+
+test('applying filters keeps a non-default sort', () => {
+  const newest = renderToStaticMarkup(<Filters slug="pilot" filters={{ status: 'active', sort: 'newest' }} agents={[]} />);
+  expect(newest).toContain('name="sort"');
+  expect(newest).toContain('value="newest"');
+  const active = renderToStaticMarkup(<Filters slug="pilot" filters={{ status: 'active', sort: 'activity' }} agents={[]} />);
+  expect(active).not.toContain('name="sort"');
 });
 
 test('a thread row is one link whose accessible name is the title', () => {
