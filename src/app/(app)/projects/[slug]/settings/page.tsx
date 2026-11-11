@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import { getProjectBySlug } from '../../../../../domain/projects';
 import { ownerPrincipal, raiseDomain } from '../../../session';
-import { archiveProjectAction, renameProject, restoreProjectAction } from './actions';
-import { ArchiveForm, RenameForm, RestoreForm } from './forms';
+import { archiveProjectAction, renameProject, restoreProjectAction, setVisibility } from './actions';
+import { ArchiveForm, RenameForm, RestoreForm, VisibilityForm } from './forms';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,6 +22,7 @@ export default async function ProjectSettingsPage({ params }: { params: Promise<
     <p>Slug {project.slug} · {archived ? 'Archived' : 'Active'}</p>
     <p>Archived projects are read-only for posting. Existing messages stay available until the project is restored.</p>
     <RenameForm key={`${project.status}-${project.name}-${project.description ?? ''}`} action={renameProject.bind(null, project.slug)} name={project.name} description={project.description ?? ''} />
+    <VisibilityForm key={project.visibility} action={setVisibility.bind(null, project.slug)} visibility={project.visibility === 'public' ? 'public' : 'private'} />
     {archived ? <RestoreForm action={restoreProjectAction.bind(null, project.slug)} /> : <ArchiveForm action={archiveProjectAction.bind(null, project.slug)} />}
   </div>;
 }

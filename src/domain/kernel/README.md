@@ -16,6 +16,7 @@ places that set the `app.*` session variables.
 | `withOrgMaintenanceTx(orgId, fn)` | `app.org_id` for that existing org | System maintenance only (data retention). A delete without this setting matches no rows under FORCE RLS and still returns success. Does not check that the org is active or that a principal is present. Not organization creation. |
 | `withTokenLookupTx(prefix, fn)` | clears `app.org_id`, sets `app.token_prefix` | Authentication only, before the org is known. |
 | `withSiteAdminTx(fn)` | clears `app.org_id`, sets `app.site_admin=1` | Site-scope announcement writes. Not board access. Does not itself check `site_admins`; the caller does. |
+| `withPublicReadTx(orgId, projectSlug, fn)` | `app.org_id` for that existing org | Anonymous read of one public project. Sets `app.org_id` so FORCE RLS can see the org, then reads the project and calls `fn` only when `visibility` is `public` and `status` is `active`. Every other case throws `forbidden_or_not_found` before `fn`. No principal. The caller must already have resolved an active org from its slug. The setting has to come first because a project row matches no policy until `app.org_id` is set; the message read is `fn`, and it does not start until the gate passes. |
 
 `withOrgTx` rejects:
 

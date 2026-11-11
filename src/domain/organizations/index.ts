@@ -7,6 +7,7 @@ import { organizations, ownerActivations } from '../../db/schema/org';
 import { siteAdmins } from '../../db/schema/site-admins';
 import { DomainError, isUuid, newId, withOrgBootstrapTx, withSiteAdminTx, writeAudit,
   type HumanPrincipal, type Principal, type AuditRecord, type TxContext } from '../kernel';
+import { parseOrganizationSlug } from './slug';
 
 function invalid(reason: string): never { throw new DomainError('validation_failed', { reason }); }
 function emailAddress(value: string) {
@@ -136,6 +137,40 @@ async function setStatus(principal: Principal, orgId: string, status: 'active' |
       entityType: 'organization', entityId: orgId, before: { status: org.status }, after: { status } } };
   }, database);
 }
+function constraintCode(error: unknown, code: string): boolean {
+  let current: unknown = error;
+  for (let depth = 0; depth < 5 && current && typeof current === 'object'; depth += 1) {
+    if ('code' in current && current.code === code) return true;
+    current = 'cause' in current ? current.cause : undefined;
+  }
+  return false;
+}
+
+/** Site admin only. Audited into the target org. Agents and owners who are not site admins cannot set it. */
+export async function setOrganizationSlug(principal: Principal, orgId: string, slug: string, database = getDb()) {
+  const next = parseOrganizationSlug(slug);
+  return withAdminOrganizationTx(principal, orgId, async (tx) => {
+    const org = await lockOrg(tx, orgId);
+    if (org.slug === next) {
+      return { result: { id: orgId, slug: next }, audit: { action: 'organization.set_slug', entityType: 'organization', entityId: orgId,
+        before: { slug: org.slug }, after: { slug: next } } };
+    }
+    try {
+      await tx.update(organizations).set({ slug: next, updatedAt: new Date() }).where(eq(organizations.id, orgId));
+    } catch (error) {
+      if (constraintCode(error, '23505')) {
+        throw new DomainError('validation_failed', { field: 'slug', reason: 'That public address is already in use.' });
+      }
+      if (constraintCode(error, '23514')) {
+        throw new DomainError('validation_failed', { field: 'slug', reason: 'That public address is not allowed.' });
+      }
+      throw error;
+    }
+    return { result: { id: orgId, slug: next }, audit: { action: 'organization.set_slug', entityType: 'organization', entityId: orgId,
+      before: { slug: org.slug }, after: { slug: next } } };
+  }, database);
+}
+
 export async function suspendOrganization(principal: Principal, orgId: string, database = getDb()) {
   return setStatus(principal, orgId, 'suspended', database);
 }
@@ -146,7 +181,7 @@ export async function listOrganizationsForAdmin(principal: Principal | null, dat
   return withSiteAdminTx(async (tx) => {
     await assertSiteAdmin(tx, principal);
     return tx.select({ id: organizations.id, name: organizations.name, status: organizations.status,
-      ownerEmail: user.email, createdAt: organizations.createdAt }).from(organizations)
+      slug: organizations.slug, ownerEmail: user.email, createdAt: organizations.createdAt }).from(organizations)
       .leftJoin(user, eq(user.id, organizations.ownerUserId)).orderBy(desc(organizations.createdAt), organizations.id);
   }, database);
 }

@@ -32,6 +32,35 @@ export function ArchiveForm({ action }: { action: SettingsAction }) {
   </form>;
 }
 
+export function VisibilityForm({ action, visibility }: { action: SettingsAction; visibility: 'private' | 'public' }) {
+  const [state, formAction, pending] = useActionState(action, initial);
+  const [confirming, setConfirming] = useState(false);
+  if (visibility === 'public') {
+    return <form action={formAction} className="space-y-2">
+      <input type="hidden" name="visibility" value="private" />
+      <p>This project is public. Anyone can read its active threads without signing in.</p>
+      <button type="submit" disabled={pending} className="rounded border px-3 py-2 disabled:opacity-50">{pending ? 'Saving…' : 'Make this project private'}</button>
+      {state.message ? <p role="status">{state.message}</p> : null}
+    </form>;
+  }
+  if (!confirming) {
+    return <div className="space-y-2">
+      <p>This project is private. Only people signed in to the organization can read it.</p>
+      <button type="button" className="rounded border px-3 py-2" onClick={() => setConfirming(true)}>Make this project public</button>
+      {state.message ? <p role="status">{state.message}</p> : null}
+    </div>;
+  }
+  return <form action={formAction} className="space-y-2">
+    <input type="hidden" name="visibility" value="public" />
+    <p>Anyone will be able to read the active threads in this project, without signing in. Archived threads stay hidden.</p>
+    <div className="flex flex-wrap gap-2">
+      <button type="submit" disabled={pending} className="rounded border px-3 py-2 disabled:opacity-50">{pending ? 'Saving…' : 'Confirm: make active threads public'}</button>
+      <button type="button" className="rounded border px-3 py-2" onClick={() => setConfirming(false)}>Cancel</button>
+    </div>
+    {state.message ? <p role="status">{state.message}</p> : null}
+  </form>;
+}
+
 export function RestoreForm({ action }: { action: SettingsAction }) {
   const [state, formAction, pending] = useActionState(action, initial);
   return <form action={formAction} className="space-y-2">

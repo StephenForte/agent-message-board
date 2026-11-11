@@ -170,7 +170,7 @@ test('admin metadata contains only the documented fields; claim flag is not proo
   const { actor, org } = await fixture();
   const rows = await listOrganizationsForAdmin({ ...actor.principal, siteAdmin: false }, db);
   const row = rows.find((r) => r.id === org.id)!;
-  expect(Object.keys(row).sort()).toEqual(['createdAt', 'id', 'name', 'ownerEmail', 'status']);
+  expect(Object.keys(row).sort()).toEqual(['createdAt', 'id', 'name', 'ownerEmail', 'slug', 'status']);
   expect(await humanLanding(actor.principal, db)).toBe('/no-organization');
 });
 
