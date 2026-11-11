@@ -1,7 +1,7 @@
 'use server';
 import { revalidatePath } from 'next/cache';
 import { requireAdmin } from '../../auth/web';
-import { associateOwner, provisionOrganization, issueOwnerActivation, suspendOrganization, restoreOrganization } from '../../domain/organizations';
+import { associateOwner, provisionOrganization, issueOwnerActivation, setOrganizationSlug, suspendOrganization, restoreOrganization } from '../../domain/organizations';
 import { DomainError } from '../../domain/kernel';
 import { loadEnv } from '../../env';
 export type AdminResult = { message: string; activationUrl?: string };
@@ -18,6 +18,7 @@ export async function mutateOrganization(_state: AdminResult, data: FormData): P
         return { message: 'Copy this activation link now. It expires in 72 hours and will not be displayed again.',
           activationUrl: new URL(`/activate/${issued.token}`, loadEnv().APP_BASE_URL).toString() };
       }
+      case 'slug': await setOrganizationSlug(principal, value('id'), value('slug')); break;
       case 'suspend': await suspendOrganization(principal, value('id')); break;
       case 'restore': await restoreOrganization(principal, value('id')); break;
       default: return { message: 'Unknown operation.' };

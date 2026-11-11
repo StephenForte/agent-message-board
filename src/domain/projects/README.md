@@ -11,10 +11,14 @@ use the kernel and the runtime database, with no adapter SQL required.
 - `updateProject(principal, projectId, { name?, description? })`
 - `archiveProject(principal, projectId)`, `restoreProject(principal, projectId)`
   are owner-only and emit project events plus before/after audit metadata.
+- `setProjectVisibility(principal, projectId, 'private' | 'public')` is owner-only.
+  It writes an audit row with the previous and next visibility and emits
+  `access.changed`. Agents cannot change it. Serialized projects include
+  `visibility` (`private` by default, including `createProject` and `listProjects`).
 - `listProjects(principal, { includeArchived? } = {})` returns only accessible
   projects, sorted by slug, with ISO timestamps. Active only by default.
-- `getProjectBySlug(principal, slug)` returns a kernel `ProjectRecord`; hidden
-  and absent slugs both return `forbidden_or_not_found`.
+- `getProjectBySlug(principal, slug)` returns a kernel `ProjectRecord` plus
+  `visibility`. Hidden and absent slugs both return `forbidden_or_not_found`.
 - `listProjectsInTx(tx, ctx, options?)`, `getProjectBySlugInTx(tx, ctx, slug)`
   compose reads in T07's existing `withOrgTx` (do not open another transaction).
 

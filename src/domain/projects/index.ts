@@ -26,9 +26,10 @@ export function listProjects(principal: Principal, options: { includeArchived?: 
   return withOrgTx(principal, (tx, ctx) => listProjectsInTx(tx, ctx, options));
 }
 export async function getProjectBySlugInTx(tx: DbTx, ctx: TxContext, slug: string) {
-  const [row] = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.orgId, ctx.orgId), eq(projects.slug, slug)));
+  const [row] = await tx.select({ id: projects.id, visibility: projects.visibility }).from(projects).where(and(eq(projects.orgId, ctx.orgId), eq(projects.slug, slug)));
   if (!row) throw new DomainError('forbidden_or_not_found');
-  return assertProjectAccess(tx, ctx.principal, row.id, 'read');
+  const project = await assertProjectAccess(tx, ctx.principal, row.id, 'read');
+  return { ...project, visibility: row.visibility === 'public' ? 'public' as const : 'private' as const };
 }
 export function getProjectBySlug(principal: Principal, slug: string) {
   return withOrgTx(principal, (tx, ctx) => getProjectBySlugInTx(tx, ctx, slug));
@@ -87,3 +88,20 @@ export function updateProject(principal: Principal, projectId: string, input: { 
 }
 export function archiveProject(principal: Principal, projectId: string) { return changeProject(principal, projectId, { status: 'archived' }, 'archived'); }
 export function restoreProject(principal: Principal, projectId: string) { return changeProject(principal, projectId, { status: 'active' }, 'restored'); }
+
+/** Owner only. Agents receive capability_denied. Audited, and emits access.changed so clients resync. */
+export function setProjectVisibility(principal: Principal, projectId: string, visibility: 'private' | 'public') {
+  requireOwner(principal);
+  requireId(projectId);
+  if (visibility !== 'private' && visibility !== 'public') throw new DomainError('validation_failed', { field: 'visibility' });
+  return withOrgTx(principal, async (tx, ctx) => {
+    const [before] = await tx.select().from(projects).where(and(eq(projects.id, projectId), eq(projects.orgId, ctx.orgId))).for('update');
+    if (!before) throw new DomainError('forbidden_or_not_found');
+    const [after] = await tx.update(projects).set({ visibility, updatedAt: new Date() }).where(and(eq(projects.id, projectId), eq(projects.orgId, ctx.orgId))).returning();
+    if (!after) throw new DomainError('forbidden_or_not_found');
+    await appendEvents(tx, ctx.orgId, [{ kind: 'access.changed', projectId, payload: { visibility } }]);
+    await writeAudit(tx, ctx, { action: 'project.set_visibility', entityType: 'project', entityId: projectId,
+      before: { visibility: before.visibility }, after: { visibility: after.visibility } });
+    return serializeProject(after);
+  });
+}

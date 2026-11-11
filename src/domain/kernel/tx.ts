@@ -3,7 +3,7 @@ import type { AppDatabase, DbTx } from '../../db/client';
 import { getDb } from '../../db/client';
 import { agentTokens, agents } from '../../db/schema/identity';
 import { organizations } from '../../db/schema/org';
-import { tokenProjectGrants } from '../../db/schema/projects';
+import { projects, tokenProjectGrants } from '../../db/schema/projects';
 import { agentSessions } from '../../db/schema/sessions';
 import { DomainError } from './errors';
 import { isUuid } from './ids';
@@ -143,6 +143,56 @@ export async function withTokenLookupTx<T>(
     return fn(tx, {
       ...token,
       scope: token.scope === 'org' ? 'org' : 'projects',
+    });
+  });
+}
+
+export type PublicProjectGate = {
+  id: string;
+  orgId: string;
+  slug: string;
+  name: string;
+  description: string | null;
+};
+
+/**
+ * Anonymous read of one project. Sets `app.org_id` so FORCE RLS can see that
+ * org, then confirms the project is public and active before `fn` runs.
+ * A missing, private, or archived project throws `forbidden_or_not_found`
+ * and `fn` does not run. Grep for withPublicReadTx. No principal is checked:
+ * the caller has already resolved an active organization by its public slug.
+ * `app.org_id` is set before the confirmation because a project row is
+ * invisible under FORCE RLS until that setting exists. The callback is the
+ * read, and it starts only after the gate passes.
+ */
+export async function withPublicReadTx<T>(
+  orgId: string,
+  projectSlug: string,
+  fn: (tx: DbTx, project: PublicProjectGate) => Promise<T>,
+  database: AppDatabase = getDb(),
+): Promise<T> {
+  if (!isUuid(orgId)) throw new DomainError('forbidden_or_not_found');
+  if (!/^[a-z0-9][a-z0-9-]{0,62}$/.test(projectSlug)) throw new DomainError('forbidden_or_not_found');
+  return database.transaction(async (tx) => {
+    await setLocal(tx, 'app.org_id', orgId);
+    const [row] = await tx.select({
+      id: projects.id,
+      orgId: projects.orgId,
+      slug: projects.slug,
+      name: projects.name,
+      description: projects.description,
+      status: projects.status,
+      visibility: projects.visibility,
+    }).from(projects).where(and(eq(projects.orgId, orgId), eq(projects.slug, projectSlug))).limit(1);
+    if (!row || row.status !== 'active' || row.visibility !== 'public') {
+      throw new DomainError('forbidden_or_not_found');
+    }
+    return fn(tx, {
+      id: row.id,
+      orgId: row.orgId,
+      slug: row.slug,
+      name: row.name,
+      description: row.description,
     });
   });
 }

@@ -1,13 +1,15 @@
 'use client';
 import { useActionState, useState } from 'react';
 import { mutateOrganization } from './actions';
-export function AdminForm({ operation, id }: { operation: 'create' | 'associate' | 'activate' | 'suspend' | 'restore'; id?: string }) {
+export function AdminForm({ operation, id, slug }: { operation: 'create' | 'associate' | 'activate' | 'suspend' | 'restore' | 'slug'; id?: string; slug?: string | null }) {
   const [state, action, pending] = useActionState(mutateOrganization, { message: '' });
   const [copied, setCopied] = useState(false);
-  const label = { create: 'Create organization', associate: 'Associate owner', activate: 'Issue activation link', suspend: 'Suspend', restore: 'Restore' }[operation];
+  const label = { create: 'Create organization', associate: 'Associate owner', activate: 'Issue activation link', suspend: 'Suspend', restore: 'Restore', slug: 'Save public address' }[operation];
   return <div className="space-y-2"><form action={action} className="flex flex-wrap items-end gap-3">
     <input type="hidden" name="operation" value={operation} /><input type="hidden" name="id" value={id ?? ''} />
     {operation === 'create' && <label>Name<input name="name" required maxLength={200} className="block rounded border p-2" /></label>}
+    {operation === 'slug' && <label>Public address
+      <input name="slug" required maxLength={40} defaultValue={slug ?? ''} autoCapitalize="none" spellCheck={false} className="block rounded border p-2" /></label>}
     {['create', 'associate', 'activate'].includes(operation) && <label>{operation === 'create' ? 'Owner email (optional)' : 'Owner email'}
       <input name="email" type="email" required={operation !== 'create'} maxLength={320} className="block rounded border p-2" /></label>}
     <button disabled={pending} className="rounded border px-3 py-2 disabled:opacity-50">{pending ? 'Saving…' : label}</button>

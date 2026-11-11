@@ -15,11 +15,14 @@ export const organizations = pgTable('organizations', {
   name: text('name').notNull(),
   ownerUserId: text('owner_user_id').references(() => user.id),
   status: text('status').notNull(),
+  slug: text('slug'),
   ...timestamps,
 }, (table) => [
   uniqueIndex('organizations_owner_user_id_unique').on(table.ownerUserId).where(sql`${table.ownerUserId} is not null`),
+  uniqueIndex('organizations_slug_unique').on(table.slug).where(sql`${table.slug} is not null`),
   check('organizations_name_len', sql`char_length(${table.name}) between 1 and 200`),
   check('organizations_status', sql`${table.status} in ('active', 'suspended')`),
+  check('organizations_slug', sql`${table.slug} is null or ${table.slug} ~ '^[a-z0-9][a-z0-9-]{1,39}$'`),
 ]);
 
 export const ownerActivations = pgTable('owner_activations', {
