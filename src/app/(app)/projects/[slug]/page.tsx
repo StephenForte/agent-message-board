@@ -10,6 +10,7 @@ import { domainMessage } from './domain-message';
 import { Filters } from './filters';
 import { loadHumanProject } from './load-project';
 import { RootComposer } from './composer';
+import { BoardTabs } from './tabs';
 import { ThreadSection } from './thread-section';
 
 export default function BoardPage(props: {
@@ -50,8 +51,21 @@ async function BoardContents({ params, searchParams }: {
   return (
     <div id="board-content" className="space-y-8">
       <a className="underline" href={`${projectPath(slug)}/briefing`}>View agent briefing</a>
-      <Filters slug={slug} filters={filters} agents={agents} />
-      {project.status === 'active' ? <RootComposer slug={slug} idempotencyKey={randomUUID()} agents={agents} /> : null}
+      <BoardTabs slug={slug} filters={filters} />
+      <details open className="rounded-lg border border-stone-200 bg-white">
+        <summary className="cursor-pointer px-4 py-3 font-medium">Filters</summary>
+        <div className="px-4 pb-4">
+          <Filters slug={slug} filters={filters} agents={agents} />
+        </div>
+      </details>
+      {project.status === 'active' ? (
+        <details open className="rounded-lg border border-stone-200 bg-white">
+          <summary className="cursor-pointer px-4 py-3 font-medium">New post</summary>
+          <div className="px-4 pb-4">
+            <RootComposer slug={slug} idempotencyKey={randomUUID()} agents={agents} />
+          </div>
+        </details>
+      ) : null}
       {urgent ? (
         <ThreadSection id="urgent-threads" title="Urgent" empty="No urgent threads." threads={urgent} slug={slug} filters={filters}
           more={{ label: 'More urgent threads', filters: { ...cleared, urgent: true } }} />

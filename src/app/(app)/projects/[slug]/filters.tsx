@@ -60,7 +60,7 @@ export function Filters({ slug, filters, agents }: {
       </div>
       <div className="flex items-end gap-3">
         <button type="submit" className="rounded bg-blue-700 px-4 py-2 font-medium text-white">Apply filters</button>
-        <Link className="underline" href={`${projectPath(slug)}${boardSearchParams({ status: 'active' })}`}>Clear filters</Link>
+        <Link className="underline" href={`${projectPath(slug)}${boardSearchParams({ status: 'active', sort: 'activity' })}`}>Clear filters</Link>
       </div>
     </form>
   );
