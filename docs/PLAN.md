@@ -51,7 +51,7 @@ src/
     (app)/connect/          T12   setup wizard, diagnostics
     api/health/             T01
     api/mcp/                T11
-drizzle/                    T02 (0000); 0001 assigned to T18 (D-033); later numbers by planner only (D-002)
+drizzle/                    T02 (0000); 0001 T18 (D-033); 0002 T20 (D-035); later numbers by planner only (D-002)
 render.yaml, docs/ops/      T13
 docs/clients/               T12
 tests/{unit,integration,e2e}/security/, docs/capability-matrix.md   T14 (configs only run those three trees)
@@ -85,6 +85,8 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 | T15 | Local load test at the pilot envelope (restore drill waived, D-032); database.md refresh | 5 | T17 | strong | merged — PR #23 (ead5181) |
 | T18 | Data retention and throttled session-activity audit (D-033); migration 0001 | 5 | T15 | strong | merged — PR #24 (56c6709) |
 | T16 | Four-client release gate + two-agent cross-machine pilot (operator-run) | 6 | T12,T15 | operator | passed 2026-11-11 — see verification log |
+| T19 | Message-centric web layout (D-034) | 7 | — | mid | dispatched — docs/briefs/T19.md (plan/wave-6) |
+| T20 | Public projects: visibility, org slug, read-only public pages (D-035); migration 0002 | 7 | T19 | strong | brief ready — docs/briefs/T20.md (plan/wave-6); dispatch after T19 merges |
 
 Wave 2 runs five tasks in parallel in one repo: each parallel worker needs its own clone
 (the brief names it and its teardown). Wave 2 clones: `/Users/stephenforte/amb-T03`, `amb-T04`, `amb-T05`,
@@ -130,6 +132,7 @@ first, so D-019–D-024 and the briefs are on `main`. Wave 1 is serial and runs 
    T09/T10 rebase onto it — predicted conflict in nav links only.
 4. T11 after T07. T12/T14 after T11.
 5. Wave 4: T12 and T14 run in parallel in clones `/Users/stephenforte/amb-T12` and `amb-T14`, sharing the e2e lock. No shared files: T12 adds two exports to `src/domain/credentials` and one link each to the (app) layout and the board page; T14 changes only tests and `docs/capability-matrix.md`. Either may merge first; the second re-runs its gate on merged main. T14's matrix cites T12's diagnostics test only after both merge (planner follow-up).
+7. Wave 6 (post-Phase-1, operator request): T19 then T20, serial. T20 reuses `src/components/board/` from T19, adds top-level `src/app/[org]/` public routes and migration 0002.
 6. Wave 5: T17 first and alone (Postgres 18, D-031). The operator created Render resources by hand (`Cloud BBS`, `cloud-bbs-db`, Postgres 18) rather than from the Blueprint; their env vars, pre-deploy migrate, build command, health check and CI-gated auto-deploy are set in the dashboard. T15 starts after the staging deploy is healthy.
 
 ## Verification log
