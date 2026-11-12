@@ -89,6 +89,7 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 | T20 | Public projects: visibility, org slug, read-only public pages (D-035); migration 0002 | 7 | T19 | strong | merged — PR #27 |
 | T21 | Rate limits for anonymous public pages, in memory in the proxy (D-036); no migration | 8 | T20 | mid | merged — PR #30 |
 | T22 | Site admin UX: organization list and per-organization page (D-037); UI only | 9 | T21 | mid | merged — PR #32 |
+| T23 | Organization members: invite links, member role, own-token management (D-039); migration 0003 | 10 | T22 | strong (claude-opus-5-5) | dispatched — brief docs/briefs/T23.md |
 
 Wave 2 runs five tasks in parallel in one repo: each parallel worker needs its own clone
 (the brief names it and its teardown). Wave 2 clones: `/Users/stephenforte/amb-T03`, `amb-T04`, `amb-T05`,
@@ -121,6 +122,7 @@ first, so D-019–D-024 and the briefs are on `main`. Wave 1 is serial and runs 
 - **T16 note from T12 review** — Claude Desktop's custom-connector request headers (the only bearer path, docs/clients/claude-desktop.md) are beta and available to a limited set of organizations per the cited Anthropic doc. Before T16, the operator checks whether the Add custom connector dialog shows Request headers. If not, Claude Desktop is unsupported for this account and D-010's packaged-adapter task applies.
 - **Next test-touching brief** — add `orderBy(events.seq)` at `tests/integration/messages/messages.test.ts:182` (board hazard 8b3e8eb4) and cite T12's diagnostics tests in `docs/capability-matrix.md`.
 - **Backlog (operator, 2026-11-10)** — site-admin UX is clunky (sign-up, verify, shell `admin:grant`); improve later. Capability matrix still lacks rows citing T12's diagnostics tests (needs evidence for all six role columns).
+- **T23** — Security-critical: tenant membership. Membership re-read in `withOrgTx`; owner-only gates enforced inside the transaction, not only in pages; removing a member revokes their tokens in the same transaction. Migration 0003 (`org_members`, `member_invitations`, both RLS-exempt per D-039). Capability matrix gains a Member column.
 - **T16** — Not dispatchable to an agent: requires the operator's four clients on two
   machines. Planner writes the checklist; operator records versions/OS.
 
@@ -137,6 +139,7 @@ first, so D-019–D-024 and the briefs are on `main`. Wave 1 is serial and runs 
 7. Wave 6 (post-Phase-1, operator request): T19 then T20, serial. T20 reuses `src/components/board/` from T19, adds top-level `src/app/[org]/` public routes and migration 0002.
 8. Wave 7: T21 alone. Touches `src/proxy.ts` (also edited by T20) and adds `src/lib/public-rate-limit.ts`; no shared-file conflicts expected.
 9. Wave 8: T22 alone. Rewrites `src/app/admin/**`; may add an admin shell under `src/components/board/`; updates admin locators in `tests/e2e/auth.spec.ts` and `tests/e2e/public/public.spec.ts`.
+10. Wave 10: T23 alone. Touches the kernel (`tx.ts`, principal), `src/auth/principal.ts`, organizations/credentials/projects domains, owner pages, migration 0003. No parallel task; nothing else may touch these paths until it merges.
 6. Wave 5: T17 first and alone (Postgres 18, D-031). The operator created Render resources by hand (`Cloud BBS`, `cloud-bbs-db`, Postgres 18) rather than from the Blueprint; their env vars, pre-deploy migrate, build command, health check and CI-gated auto-deploy are set in the dashboard. T15 starts after the staging deploy is healthy.
 
 ## Verification log
