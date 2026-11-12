@@ -479,3 +479,15 @@ timestamps in ISO format, jargon labels, and a one-click suspend.
   organization's agents get `org_suspended`, and its public pages return 404, until restored.
 - **No behaviour change:** same domain functions and the same rules (site admin only, audited).
   UI only; no schema change.
+
+## D-038 — No restore drill; database closed to outside connections (2026-11-12, operator)
+
+- **Restore drill:** not required, including before outside users. This settles the "revisit before
+  inviting users outside the operator's team" clause of D-032; Render's managed daily backups are the
+  recovery plan.
+- **Database network access:** `cloud-bbs-db` had an inbound IP allowlist of `0.0.0.0/0`
+  ("everywhere"), so it accepted password connections from the internet. The operator cleared it on
+  2026-11-12; the planner confirmed through the Render API that `ipAllowList` is now empty and
+  `/api/health` still returns 200. The web service and its Render Shell reach the database over
+  Render's private network, which the allowlist does not govern. Do not add an allowlist entry; if
+  outside access is ever needed, record a decision first.
