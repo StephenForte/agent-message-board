@@ -430,3 +430,31 @@ An owner can make a project's active threads readable by anyone, without signing
 - Schema changes are migration `0002`, assigned to T20 under D-002. Public reads go through a named
   domain path that sets `app.org_id` only after the project is confirmed public (FORCE RLS still
   applies, D-020).
+
+## D-036 — Rate limits for anonymous public pages (2026-11-12, planner, operator request)
+
+Public project pages (D-035) are readable without signing in, so they need a limit that does not
+depend on a token.
+
+- **What is counted:** every request whose path is a public route (the same test as
+  `publicRobotsTag`: two or more path segments and a first segment that is not a reserved name).
+  This includes 404s for unknown orgs and projects, so slug guessing is limited too. Static assets
+  under `/_next/` and every signed-in route are not counted.
+- **Two limits, fixed one-minute windows:** 60 requests per client address per minute, and 600
+  requests per minute for all public traffic together. The global limit is the real protection:
+  it caps database work from anonymous traffic even if a client changes its address on every
+  request.
+- **Client address:** the `True-Client-IP` header if present, else the first entry of
+  `X-Forwarded-For`, else the single key `unknown`. Render's behaviour for these headers is not
+  documented and may let a client set them; the global limit bounds the damage, and the planner
+  checks the real behaviour on staging after deploy.
+- **Where:** in memory, in `src/proxy.ts`, before any database work. No table and no migration:
+  staging runs one instance (Render `numInstances` 1, checked 2026-11-12). If the service is ever
+  scaled out, each instance enforces its own limits, so the effective limit multiplies; revisit
+  this decision then. The tracked-address map has a fixed size cap so changing addresses cannot
+  grow memory without bound.
+- **Response:** HTTP 429 with `Retry-After` (seconds to the end of the window), `Cache-Control:
+  no-store`, `X-Robots-Tag: noindex`, and a short plain page. At most one log line per minute per
+  limit, with counts only; client addresses are never logged.
+- Agent (MCP) limits are unchanged (`src/domain/ratelimit`, per token, database-backed).
+- **Checked on staging 2026-11-12** (deploy of 9246a7c): the 61st request from one address got 429; with that address exhausted, requests carrying a forged `True-Client-IP` or `X-Forwarded-For` still got 429. Render's edge overwrites both headers, so the per-address limit cannot be bypassed by setting them.
