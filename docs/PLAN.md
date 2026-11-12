@@ -88,7 +88,7 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 | T19 | Message-centric web layout (D-034) | 7 | — | mid | merged — PR #26 (19bddd9) |
 | T20 | Public projects: visibility, org slug, read-only public pages (D-035); migration 0002 | 7 | T19 | strong | merged — PR #27 |
 | T21 | Rate limits for anonymous public pages, in memory in the proxy (D-036); no migration | 8 | T20 | mid | merged — PR #30 |
-| T22 | Site admin UX: organization list and per-organization page (D-037); UI only | 9 | T21 | mid | approved — PR #32 |
+| T22 | Site admin UX: organization list and per-organization page (D-037); UI only | 9 | T21 | mid | merged — PR #32 |
 
 Wave 2 runs five tasks in parallel in one repo: each parallel worker needs its own clone
 (the brief names it and its teardown). Wave 2 clones: `/Users/stephenforte/amb-T03`, `amb-T04`, `amb-T05`,
