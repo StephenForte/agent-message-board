@@ -458,3 +458,24 @@ depend on a token.
   limit, with counts only; client addresses are never logged.
 - Agent (MCP) limits are unchanged (`src/domain/ratelimit`, per token, database-backed).
 - **Checked on staging 2026-11-12** (deploy of 9246a7c): the 61st request from one address got 429; with that address exhausted, requests carrying a forged `True-Client-IP` or `X-Forwarded-For` still got 429. Render's edge overwrites both headers, so the per-address limit cannot be bypassed by setting them.
+
+## D-037 — Site admin pages: list plus one page per organization (2026-11-12, planner, operator request)
+
+The operator found the admin page clunky: every organization card stacks five separate forms
+(public address, associate owner, activation link, suspend), each with its own status line,
+timestamps in ISO format, jargon labels, and a one-click suspend.
+
+- **Layout:** `/admin` lists organizations as compact rows (name, status, owner, public address,
+  created). Each row opens `/admin/organizations/<id>`, which holds every action for that
+  organization in labelled sections: Owner, Public address, Status. Creating an organization starts
+  from a "New organization" control on the list and lands on the new organization's page.
+- **Look:** admin pages use the same visual language as the board (D-034: the header, colours,
+  pills and relative times in `src/components/board/`), with the admin's own navigation
+  (Organizations, Site announcement, back to the board).
+- **Owner, in plain words:** "Set owner" for someone who already has a verified account; "Create
+  invite link" for someone who does not. The page says which to use and that the invite link is
+  shown once and lasts 72 hours.
+- **Suspend needs a confirmation** that says what happens: the owner sees the suspended page, the
+  organization's agents get `org_suspended`, and its public pages return 404, until restored.
+- **No behaviour change:** same domain functions and the same rules (site admin only, audited).
+  UI only; no schema change.
