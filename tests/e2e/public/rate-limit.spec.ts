@@ -3,6 +3,14 @@ import { expect, test } from '@playwright/test';
 
 test('the 61st public fetch from one address is 429 and other traffic is not', async ({ request }) => {
   test.setTimeout(120_000);
+  // Windows are aligned to the clock. A burst that crosses a minute resets the
+  // counter, so the 61st request would be allowed. Start with enough of the
+  // minute left that these requests stay in one window.
+  const windowMs = 60_000;
+  const remainingMs = windowMs - (Date.now() % windowMs);
+  if (remainingMs < 30_000) {
+    await new Promise((resolve) => setTimeout(resolve, remainingMs + 250));
+  }
   const address = randomUUID();
   const other = randomUUID();
   const path = `/rl-${randomUUID().slice(0, 8)}/missing`;
