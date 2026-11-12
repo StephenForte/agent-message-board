@@ -457,3 +457,4 @@ depend on a token.
   no-store`, `X-Robots-Tag: noindex`, and a short plain page. At most one log line per minute per
   limit, with counts only; client addresses are never logged.
 - Agent (MCP) limits are unchanged (`src/domain/ratelimit`, per token, database-backed).
+- **Checked on staging 2026-11-12** (deploy of 9246a7c): the 61st request from one address got 429; with that address exhausted, requests carrying a forged `True-Client-IP` or `X-Forwarded-For` still got 429. Render's edge overwrites both headers, so the per-address limit cannot be bypassed by setting them.
