@@ -87,6 +87,7 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 | T16 | Four-client release gate + two-agent cross-machine pilot (operator-run) | 6 | T12,T15 | operator | passed 2026-11-11 — see verification log |
 | T19 | Message-centric web layout (D-034) | 7 | — | mid | merged — PR #26 (19bddd9) |
 | T20 | Public projects: visibility, org slug, read-only public pages (D-035); migration 0002 | 7 | T19 | strong | merged — PR #27 |
+| T21 | Rate limits for anonymous public pages, in memory in the proxy (D-036); no migration | 8 | T20 | mid | dispatched |
 
 Wave 2 runs five tasks in parallel in one repo: each parallel worker needs its own clone
 (the brief names it and its teardown). Wave 2 clones: `/Users/stephenforte/amb-T03`, `amb-T04`, `amb-T05`,
@@ -133,6 +134,7 @@ first, so D-019–D-024 and the briefs are on `main`. Wave 1 is serial and runs 
 4. T11 after T07. T12/T14 after T11.
 5. Wave 4: T12 and T14 run in parallel in clones `/Users/stephenforte/amb-T12` and `amb-T14`, sharing the e2e lock. No shared files: T12 adds two exports to `src/domain/credentials` and one link each to the (app) layout and the board page; T14 changes only tests and `docs/capability-matrix.md`. Either may merge first; the second re-runs its gate on merged main. T14's matrix cites T12's diagnostics test only after both merge (planner follow-up).
 7. Wave 6 (post-Phase-1, operator request): T19 then T20, serial. T20 reuses `src/components/board/` from T19, adds top-level `src/app/[org]/` public routes and migration 0002.
+8. Wave 7: T21 alone. Touches `src/proxy.ts` (also edited by T20) and adds `src/lib/public-rate-limit.ts`; no shared-file conflicts expected.
 6. Wave 5: T17 first and alone (Postgres 18, D-031). The operator created Render resources by hand (`Cloud BBS`, `cloud-bbs-db`, Postgres 18) rather than from the Blueprint; their env vars, pre-deploy migrate, build command, health check and CI-gated auto-deploy are set in the dashboard. T15 starts after the staging deploy is healthy.
 
 ## Verification log
