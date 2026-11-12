@@ -83,10 +83,11 @@ test('owner publishes a project and a signed-out visitor reads its threads', asy
 
   await signInLoose(page, admin.email);
   await page.goto('/admin');
-  const card = page.locator('li', { has: page.getByRole('heading', { name: orgName, exact: true }) });
-  await card.getByLabel('Public address').fill(orgSlug);
-  await card.getByRole('button', { name: 'Save public address' }).click();
-  await expect(card.getByText(`Public address /${orgSlug}`)).toBeVisible();
+  await page.getByRole('link', { name: orgName, exact: true }).click();
+  await expect(page).toHaveURL(/\/admin\/organizations\/[0-9a-f-]{36}$/);
+  await page.getByRole('textbox', { name: 'Public address', exact: true }).fill(orgSlug);
+  await page.getByRole('button', { name: 'Save public address', exact: true }).click();
+  await expect(page.getByRole('link', { name: `https://localhost:3101/${orgSlug}`, exact: true })).toBeVisible();
 
   await page.context().clearCookies();
   await signIn(page, owner.email);

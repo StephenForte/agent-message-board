@@ -54,17 +54,18 @@ test('admin creates an organization, associates an owner, suspends and restores 
   await page.goto('/admin');
   const name = `Created by admin ${newId()}`;
   await page.getByLabel('Name', { exact: true }).fill(name);
-  await page.getByRole('button', { name: 'Create organization', exact: true }).click();
-  const org = page.getByRole('listitem').filter({ has: page.getByRole('heading', { name }) });
-  await expect(org).toBeVisible();
-  await org.getByRole('button', { name: 'Suspend', exact: true }).click();
-  await expect(org.getByRole('button', { name: 'Restore', exact: true })).toBeVisible();
-  await org.getByRole('button', { name: 'Restore', exact: true }).click();
-  await expect(org.getByRole('button', { name: 'Suspend', exact: true })).toBeVisible();
-  const association = org.locator('form').filter({ has: page.getByRole('button', { name: 'Associate owner', exact: true }) });
+  await page.getByRole('button', { name: 'New organization', exact: true }).click();
+  await expect(page).toHaveURL(/\/admin\/organizations\/[0-9a-f-]{36}$/);
+  await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Suspend organization', exact: true }).click();
+  await page.getByRole('button', { name: 'Confirm suspend', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Restore organization', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Restore organization', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Suspend organization', exact: true })).toBeVisible();
+  const association = page.locator('form').filter({ has: page.getByRole('button', { name: 'Set owner', exact: true }) });
   await association.getByLabel('Owner email', { exact: true }).fill(owner.email);
-  await association.getByRole('button', { name: 'Associate owner', exact: true }).click();
-  await expect(org).toContainText(owner.email);
+  await association.getByRole('button', { name: 'Set owner', exact: true }).click();
+  await expect(page.getByRole('main')).toContainText(owner.email);
 });
 
 test('admin activation link is displayed once and invited user can claim it', async ({ page, browser }) => {
@@ -72,14 +73,14 @@ test('admin activation link is displayed once and invited user can claim it', as
   await signIn(page, admin.email); await expect(page).toHaveURL(/\/no-organization$/);
   await page.goto('/admin'); const name = `Activation org ${newId()}`;
   await page.getByLabel('Name', { exact: true }).fill(name);
-  await page.getByRole('button', { name: 'Create organization', exact: true }).click();
-  const org = page.getByRole('listitem').filter({ has: page.getByRole('heading', { name }) });
-  const invite = org.locator('form').filter({ has: page.getByRole('button', { name: 'Issue activation link', exact: true }) });
-  await invite.getByLabel('Owner email', { exact: true }).fill(owner.email);
-  await invite.getByRole('button', { name: 'Issue activation link', exact: true }).click();
-  const displayed = org.getByLabel('Activation link', { exact: true });
+  await page.getByRole('button', { name: 'New organization', exact: true }).click();
+  await expect(page).toHaveURL(/\/admin\/organizations\/[0-9a-f-]{36}$/);
+  const invite = page.locator('form').filter({ has: page.getByRole('button', { name: 'Create invite link', exact: true }) });
+  await invite.getByLabel('Invite email', { exact: true }).fill(owner.email);
+  await invite.getByRole('button', { name: 'Create invite link', exact: true }).click();
+  const displayed = page.getByLabel('Activation link', { exact: true });
   await expect(displayed).toBeVisible(); const link = await displayed.inputValue();
-  await expect(org.getByRole('button', { name: 'Copy activation link', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Copy', exact: true })).toBeVisible();
   await page.reload(); await expect(page.getByLabel('Activation link', { exact: true })).toHaveCount(0);
   const context = await browser.newContext({ ignoreHTTPSErrors: true, extraHTTPHeaders: { 'x-forwarded-for': '198.51.100.88' } });
   try {
