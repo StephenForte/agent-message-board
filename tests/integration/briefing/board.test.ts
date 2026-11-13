@@ -264,7 +264,7 @@ test('restricted scope excludes hidden project groups, counts, continuation cont
 
 test('humans require explicit projects, addressed is agent-only, unresolved agents and malformed input fail', async () => {
   const seed = await fixture('human');
-  const human: HumanPrincipal = { kind: 'human', orgId: seed.orgId, userId: seed.userId, siteAdmin: false, interface: 'web', requestId: randomUUID() };
+  const human: HumanPrincipal = { kind: 'human', orgId: seed.orgId, role: 'owner', userId: seed.userId, siteAdmin: false, interface: 'web', requestId: randomUUID() };
   await expect(checkBoard(human, {}, runtime.db)).rejects.toMatchObject({ code: 'no_project_selected' });
   await expect(checkBoard(human, { projectId: seed.projectId, view: 'addressed' }, runtime.db)).rejects.toMatchObject({ code: 'validation_failed' });
   const result = await checkBoard(human, { projectIds: [seed.projectId] }, runtime.db);
@@ -282,7 +282,7 @@ test('query count is independent of items/events; measure one, five and twenty s
   const counted = drizzle(runtime.pool, { schema, logger: { logQuery() { queries++; } } });
   const measure = async (projectIds: string[]) => {
     queries = 0;
-    const principal: HumanPrincipal = { kind: 'human', orgId: seed.orgId, userId: seed.userId, siteAdmin: false, interface: 'web', requestId: 'query-count' };
+    const principal: HumanPrincipal = { kind: 'human', orgId: seed.orgId, role: 'owner', userId: seed.userId, siteAdmin: false, interface: 'web', requestId: 'query-count' };
     await checkBoard(principal, { projectIds }, counted);
     return queries;
   };
@@ -298,7 +298,7 @@ test('query count is independent of items/events; measure one, five and twenty s
   process.stdout.write(`T07 SQL statements: 1 project/10 threads=${ten}, 1 project/200 threads=${twoHundred}, 5 projects=${five}, 20 projects=${twenty}\n`);
   expect(five).toBeGreaterThan(ten); expect(twenty).toBeGreaterThan(five);
   // No output count can drive per-item queries: page size 1 and 100 use the same statements.
-  const principal: HumanPrincipal = { kind: 'human', orgId: seed.orgId, userId: seed.userId, siteAdmin: false, interface: 'web', requestId: 'query-count' };
+  const principal: HumanPrincipal = { kind: 'human', orgId: seed.orgId, role: 'owner', userId: seed.userId, siteAdmin: false, interface: 'web', requestId: 'query-count' };
   queries = 0; await checkBoard(principal, { projectId: seed.projectId, limit: 1 }, counted); const one = queries;
   queries = 0; await checkBoard(principal, { projectId: seed.projectId, limit: 100 }, counted); expect(queries).toBe(one);
   expect(hash({ a: 1 })).toHaveLength(64);

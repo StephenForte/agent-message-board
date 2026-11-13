@@ -4,10 +4,20 @@ import { organizations } from '../../db/schema/org';
 import { agentTokens, agents } from '../../db/schema/identity';
 import { agentProjectDefaults, tokenProjectGrants } from '../../db/schema/projects';
 import { agentSessionProjects, agentSessions } from '../../db/schema/sessions';
-import { appendEvents, assertProjectAccess, DomainError, newId, withOrgTx, withTokenLookupTx, writeAudit } from '../kernel';
+import { appendEvents, assertProjectAccess, DomainError, newId, requireTxOwner, withOrgTx, withTokenLookupTx, writeAudit } from '../kernel';
 import type { AgentPrincipal, InterfaceKind, Principal, TxContext } from '../kernel';
 import { listProjectsInTx, requireId, requireOwner, textField } from '../projects';
 import { hashSecret, matchesSecret, randomBase62 } from './secrets';
+
+function humanUserId(ctx: TxContext): string {
+  if (ctx.principal.kind !== 'human') throw new DomainError('capability_denied');
+  return ctx.principal.userId;
+}
+
+/** Members may only manage tokens they issued; owners manage every org token. */
+function tokenOwnedByActor(ctx: TxContext, createdByUserId: string): boolean {
+  return ctx.role === 'owner' || createdByUserId === humanUserId(ctx);
+}
 
 const tokenColumns = {
   id: agentTokens.id, label: agentTokens.label, prefix: agentTokens.prefix, scope: agentTokens.scope,
@@ -49,18 +59,23 @@ async function issueToken(tx: DbTx, ctx: TxContext, input: CreateTokenInput) {
   textField(input.label, 'label', 200);
   if (input.scope !== 'org' && input.scope !== 'projects') throw new DomainError('validation_failed', { field: 'scope' });
   if (input.canCreateProjects !== undefined && typeof input.canCreateProjects !== 'boolean') throw new DomainError('validation_failed', { field: 'canCreateProjects' });
+  // Owners keep the org-scope default of true. Members without project creation
+  // may still issue org-wide tokens, but those default to canCreateProjects false.
+  const canCreate = input.canCreateProjects ?? (ctx.canCreateProjects && input.scope === 'org');
+  if (canCreate && !ctx.canCreateProjects) throw new DomainError('capability_denied');
   const ids = [...new Set(input.projectIds ?? [])];
   if (input.scope === 'org' && ids.length) throw new DomainError('validation_failed', { field: 'projectIds' });
   await validateProjects(tx, ctx, ids);
   const expiresAt = input.expiresAt == null ? null : new Date(input.expiresAt);
   if (expiresAt && (!Number.isFinite(expiresAt.getTime()) || expiresAt.getTime() <= Date.now())) throw new DomainError('validation_failed', { field: 'expiresAt' });
+  const createdByUserId = humanUserId(ctx);
   // Prefix collisions are handled without aborting the surrounding transaction.
   for (;;) {
     const prefix = randomBase62(8);
     const secret = `amb_${prefix}_${randomBase62(40)}`;
     const [row] = await tx.insert(agentTokens).values({ id: newId(), orgId: ctx.orgId, label: input.label, prefix,
-      tokenHash: hashSecret(secret), scope: input.scope, canCreateProjects: input.canCreateProjects ?? input.scope === 'org',
-      expiresAt, createdByUserId: ctx.principal.userId,
+      tokenHash: hashSecret(secret), scope: input.scope, canCreateProjects: canCreate,
+      expiresAt, createdByUserId,
     }).onConflictDoNothing({ target: agentTokens.prefix }).returning(tokenColumns);
     if (!row) continue;
     if (ids.length) await tx.insert(tokenProjectGrants).values(ids.map((projectId) => ({ orgId: ctx.orgId, tokenId: row.id, projectId, source: 'owner' })));
@@ -79,16 +94,26 @@ export function createToken(principal: Principal, input: CreateTokenInput) {
 }
 export async function listTokensInTx(tx: DbTx, ctx: TxContext) {
   requireOwner(ctx.principal);
-  const rows = await tx.select(tokenColumns).from(agentTokens).where(eq(agentTokens.orgId, ctx.orgId)).orderBy(asc(agentTokens.createdAt));
+  const filter = ctx.role === 'member'
+    ? and(eq(agentTokens.orgId, ctx.orgId), eq(agentTokens.createdByUserId, humanUserId(ctx)))
+    : eq(agentTokens.orgId, ctx.orgId);
+  const rows = await tx.select(tokenColumns).from(agentTokens).where(filter).orderBy(asc(agentTokens.createdAt));
   const grants = await tx.select().from(tokenProjectGrants).where(eq(tokenProjectGrants.orgId, ctx.orgId));
   return rows.map((row) => serializeToken(row, grants.filter((g) => g.tokenId === row.id).map((g) => g.projectId)));
 }
 export function listTokens(principal: Principal) { requireOwner(principal); return withOrgTx(principal, listTokensInTx); }
 async function lockedToken(tx: DbTx, ctx: TxContext, id: string) {
   requireId(id);
-  const [row] = await tx.select(tokenColumns).from(agentTokens).where(and(eq(agentTokens.id, id), eq(agentTokens.orgId, ctx.orgId))).for('update');
-  if (!row) throw new DomainError('forbidden_or_not_found');
-  return row;
+  const [row] = await tx.select({
+    ...tokenColumns,
+    createdByUserId: agentTokens.createdByUserId,
+  }).from(agentTokens).where(and(eq(agentTokens.id, id), eq(agentTokens.orgId, ctx.orgId))).for('update');
+  if (!row || !tokenOwnedByActor(ctx, row.createdByUserId)) throw new DomainError('forbidden_or_not_found');
+  return {
+    id: row.id, label: row.label, prefix: row.prefix, scope: row.scope,
+    canCreateProjects: row.canCreateProjects, expiresAt: row.expiresAt, revokedAt: row.revokedAt,
+    lastUsedAt: row.lastUsedAt, createdAt: row.createdAt, updatedAt: row.updatedAt,
+  };
 }
 export function revokeToken(principal: Principal, tokenId: string) {
   requireOwner(principal);
@@ -127,13 +152,14 @@ export function setTokenGrants(principal: Principal, tokenId: string, projectIds
 }
 export async function listAgentsInTx(tx: DbTx, ctx: TxContext) {
   requireOwner(ctx.principal);
+  requireTxOwner(ctx);
   const rows = await tx.select().from(agents).where(eq(agents.orgId, ctx.orgId)).orderBy(asc(agents.name));
   return rows.map(serializeAgent);
 }
 function serializeAgent(row: typeof agents.$inferSelect) { return { ...row, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString(), lastSeenAt: row.lastSeenAt?.toISOString() ?? null }; }
 export function listAgents(principal: Principal) { requireOwner(principal); return withOrgTx(principal, listAgentsInTx); }
 export async function listAgentSessionsInTx(tx: DbTx, ctx: TxContext, agentId: string) {
-  requireOwner(ctx.principal); await requireAgent(tx, ctx, agentId);
+  requireOwner(ctx.principal); requireTxOwner(ctx); await requireAgent(tx, ctx, agentId);
   const rows = await tx.select({ id: agentSessions.id, agentId: agentSessions.agentId, tokenPrefix: agentTokens.prefix,
     clientLabel: agentSessions.clientLabel, createdAt: agentSessions.createdAt, lastSeenAt: agentSessions.lastSeenAt,
   }).from(agentSessions).innerJoin(agentTokens, and(eq(agentTokens.id, agentSessions.tokenId), eq(agentTokens.orgId, agentSessions.orgId)))
@@ -151,6 +177,7 @@ async function requireAgent(tx: DbTx, ctx: TxContext, agentId: string, lock = fa
 export function setAgentDefaults(principal: Principal, agentId: string, projectIds: string[]) {
   requireOwner(principal);
   return withOrgTx(principal, async (tx, ctx) => {
+    requireTxOwner(ctx);
     await requireAgent(tx, ctx, agentId, true);
     const ids = [...new Set(projectIds)]; await validateProjects(tx, ctx, ids);
     const before = await tx.select().from(agentProjectDefaults).where(eq(agentProjectDefaults.agentId, agentId));
@@ -249,7 +276,7 @@ export function resolveTargetProjects(principal: AgentPrincipal, input: { projec
 }
 
 
-/** Owner onboarding is atomic: no credential or identity survives a failed setup. */
+/** Human onboarding is atomic: no credential or identity survives a failed setup. */
 export function setupAgentConnection(principal: Principal, input: {
   agentName: string; clientLabel?: string; token: CreateTokenInput; defaultProjectIds: string[];
 }) {
@@ -263,6 +290,10 @@ export function setupAgentConnection(principal: Principal, input: {
     const inserted = await tx.insert(agents).values({ id: newId(), orgId: ctx.orgId, name: input.agentName }).onConflictDoNothing().returning();
     const [agent] = await tx.select().from(agents).where(and(eq(agents.orgId, ctx.orgId), sql`lower(${agents.name}) = lower(${input.agentName})`)).for('update');
     if (!agent) throw new DomainError('unavailable');
+    // Members may only register a new agent name; reusing one is rejected without changing defaults.
+    if (ctx.role === 'member' && !inserted.length) {
+      throw new DomainError('validation_failed', { field: 'agentName' });
+    }
     if (inserted.length) await audit(tx, ctx, 'agent.register', 'agent', agent.id, null, { name: agent.name });
     const issued = await issueToken(tx, ctx, input.token);
     const before = await tx.select().from(agentProjectDefaults).where(and(eq(agentProjectDefaults.orgId, ctx.orgId), eq(agentProjectDefaults.agentId, agent.id)));

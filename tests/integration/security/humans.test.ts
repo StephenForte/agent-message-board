@@ -24,7 +24,7 @@ test('site admin without ownership and verified user without org cannot read any
     if (siteAdmin) await admin.db.insert(siteAdmins).values({ userId: outsiderId });
     // Also try a forged org id: a valid admin claim must never replace ownership.
     for (const orgId of [null, target.orgId]) {
-      const p: HumanPrincipal = { kind: 'human', userId: outsiderId, orgId, siteAdmin, interface: 'web', requestId: newId() };
+      const p: HumanPrincipal = { kind: 'human', userId: outsiderId, orgId, role: orgId ? 'owner' : null, siteAdmin, interface: 'web', requestId: newId() };
       const reads: Array<() => Promise<unknown>> = [
         () => listProjects(p), () => getProjectBySlug(p, 'alpha'),
         () => listThreads(p, { projectIds: [target.projectId] }), () => getThread(p, { rootId: root }),

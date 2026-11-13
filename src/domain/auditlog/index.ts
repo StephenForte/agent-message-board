@@ -4,7 +4,7 @@ import { getDb } from '../../db/client';
 import { user } from '../../db/schema/auth';
 import { agentTokens, agents } from '../../db/schema/identity';
 import { auditRecords } from '../../db/schema/ops';
-import { DomainError, withOrgTx, type Principal, type TxContext } from '../kernel';
+import { DomainError, requireTxOwner, withOrgTx, type Principal, type TxContext } from '../kernel';
 import { auditScope, decodeAuditCursor, encodeAuditCursor } from './cursor';
 import { actorLabel, summarizeChange } from './summary';
 
@@ -54,6 +54,7 @@ export async function listAuditLog(principal: Principal, input: ListAuditLogInpu
 
 export async function listAuditLogInTx(tx: DbTx, ctx: TxContext, input: Parsed): Promise<AuditLogPage> {
   requireOwner(ctx.principal);
+  requireTxOwner(ctx);
   const scope = auditScope(ctx.orgId, input.includeSessionSeen);
   const position = decodeAuditCursor(input.cursor, scope);
   const filters: SQL[] = [eq(auditRecords.orgId, ctx.orgId)];

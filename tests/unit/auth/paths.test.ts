@@ -8,6 +8,8 @@ test('auth request URLs normalize base trailing slashes', () => {
 test('verification preserves only validated activation destinations', () => {
   const next = `/activate/${'x'.repeat(43)}`;
   expect(safeActivationReturn(next)).toBe(next);
+  const join = `/join/${'y'.repeat(43)}`;
+  expect(safeActivationReturn(join)).toBe(join);
   expect(new URL(verificationCallback(next), 'https://example.com').searchParams.get('returnTo')).toBe(next);
   for (const value of ['//evil.example.com', 'https://evil.example.com', '/activate/short', '/activate/' + 'x'.repeat(43) + '?redirect=evil', undefined]) {
     expect(safeActivationReturn(value)).toBeNull(); expect(verificationCallback(value)).toBe('/verify-email');

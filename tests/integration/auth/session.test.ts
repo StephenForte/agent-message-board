@@ -46,7 +46,7 @@ test('verification and password reset emails have working links; verification is
   const cookie = cookieFrom(signin);
   expect(cookie).not.toBe('');
   const principal = await getHumanPrincipal(new Headers({ cookie, 'x-request-id': 'session-test' }), auth, runtime.db);
-  expect(principal).toMatchObject({ userId: person.id, orgId: null, siteAdmin: false, interface: 'web', requestId: 'session-test' });
+  expect(principal).toMatchObject({ userId: person.id, orgId: null, role: null, siteAdmin: false, interface: 'web', requestId: 'session-test' });
   await post('/request-password-reset', { email: person.address, redirectTo: '/reset-password' });
   const reset = email.messages.findLast((m) => m.to === person.address && m.subject === 'Reset your password')!;
   const callback = await auth.handler(new Request(linkFrom(reset.text)));

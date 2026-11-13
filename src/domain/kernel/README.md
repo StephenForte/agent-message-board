@@ -111,6 +111,8 @@ token. Inserts, updates, and deletes require `app.org_id`.
 | `site_admins` | Global role (D-006), not a Better Auth user field. Site admin is not board access. |
 | `organizations` | The tenant root. Site admin lists orgs before an org context exists. Callers still only use the principal's org id. |
 | `owner_activations` | Single-use link. The hash is the credential; the org is not a session yet. Store `token_hash` only. |
+| `org_members` | The web principal resolves its org from the user id before any org context exists. |
+| `member_invitations` | An invite is looked up by hash before the user belongs to an org. |
 
 Every other table has `ENABLE` and `FORCE ROW LEVEL SECURITY`. A missing
 `app.org_id` matches no rows. `announcements` and `announcement_revisions` are

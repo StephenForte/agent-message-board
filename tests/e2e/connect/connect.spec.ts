@@ -34,7 +34,7 @@ test.beforeEach(async ({ context }, info) => {
 type Owner = { id: string; email: string; orgId: string };
 
 function humanOf(owner: Owner): HumanPrincipal {
-  return { kind: 'human', userId: owner.id, orgId: owner.orgId, siteAdmin: false, requestId: randomUUID(), interface: 'web' };
+  return { kind: 'human', userId: owner.id, orgId: owner.orgId, role: 'owner', siteAdmin: false, requestId: randomUUID(), interface: 'web' };
 }
 
 async function seedOwner(): Promise<Owner> {
@@ -151,7 +151,7 @@ test('wizard secret stays local; SDK sessions, briefing, and tenant isolation wo
     page = await context.newPage();
     page.on('request', (request) => urls.push(request.url()));
     await signIn(page, owner.email);
-    await page.getByRole('link', { name: 'Connect', exact: true }).click();
+    await page.getByRole('link', { name: 'Connect an agent', exact: true }).click();
     await page.getByRole('combobox', { name: 'Client', exact: true }).selectOption('Codex');
     await expect(page.getByRole('checkbox', { name: 'Can create projects' })).not.toBeChecked();
     await page.getByRole('radio', { name: /^Broad:/ }).check();

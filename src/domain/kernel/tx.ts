@@ -2,7 +2,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import type { AppDatabase, DbTx } from '../../db/client';
 import { getDb } from '../../db/client';
 import { agentTokens, agents } from '../../db/schema/identity';
-import { organizations } from '../../db/schema/org';
+import { orgMembers, organizations } from '../../db/schema/org';
 import { projects, tokenProjectGrants } from '../../db/schema/projects';
 import { agentSessions } from '../../db/schema/sessions';
 import { DomainError } from './errors';
@@ -13,9 +13,11 @@ export type TxContext = {
   principal: Principal;
   orgId: string;
   requestId: string;
-  /** Current project allowlist. `'all'` for owners, org-wide tokens, and system. */
+  /** Current project allowlist. `'all'` for owners, members, org-wide tokens, and system. */
   projectIds: readonly string[] | 'all';
   canCreateProjects: boolean;
+  /** Human role re-read in this transaction. Null for agents and system. */
+  role: 'owner' | 'member' | null;
 };
 
 export type TokenAuthView = {
@@ -55,9 +57,23 @@ export async function withOrgTx<T>(
 
     let projectIds: readonly string[] | 'all' = 'all';
     let canCreateProjects = false;
+    let role: 'owner' | 'member' | null = null;
     if (principal.kind === 'human') {
-      if (row.ownerUserId !== principal.userId) throw new DomainError('forbidden_or_not_found');
-      canCreateProjects = true;
+      if (row.ownerUserId === principal.userId) {
+        role = 'owner';
+        canCreateProjects = true;
+      } else {
+        // Re-read membership every call — never trust principal.role alone.
+        const [member] = await tx.select({
+          canCreateProjects: orgMembers.canCreateProjects,
+        }).from(orgMembers).where(and(
+          eq(orgMembers.orgId, orgId),
+          eq(orgMembers.userId, principal.userId),
+        )).limit(1);
+        if (!member) throw new DomainError('forbidden_or_not_found');
+        role = 'member';
+        canCreateProjects = member.canCreateProjects;
+      }
     } else if (principal.kind === 'agent') {
       const fresh = await freshAgent(tx, principal);
       projectIds = fresh.projectIds;
@@ -72,8 +88,16 @@ export async function withOrgTx<T>(
       requestId: principal.requestId,
       projectIds,
       canCreateProjects,
+      role,
     });
   });
+}
+
+/** Owner-only operations must use the role from this transaction, not principal.role. */
+export function requireTxOwner(ctx: TxContext): void {
+  if (ctx.principal.kind !== 'human' || ctx.role !== 'owner') {
+    throw new DomainError('capability_denied');
+  }
 }
 
 /**

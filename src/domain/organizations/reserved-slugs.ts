@@ -13,6 +13,7 @@ export const reservedOrgSlugs = new Set([
   'connect',
   'favicon.ico',
   'forgot-password',
+  'join',
   'no-organization',
   'p',
   'projects',

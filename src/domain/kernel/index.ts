@@ -10,5 +10,5 @@ export { checkDatabase } from './health';
 export { withIdempotency } from './idempotency';
 export { isUuid, newId } from './ids';
 export type { AgentPrincipal, HumanPrincipal, InterfaceKind, Principal, SystemPrincipal } from './principal';
-export { withOrgBootstrapTx, withOrgMaintenanceTx, withOrgTx, withPublicReadTx, withSiteAdminTx, withTokenLookupTx } from './tx';
+export { requireTxOwner, withOrgBootstrapTx, withOrgMaintenanceTx, withOrgTx, withPublicReadTx, withSiteAdminTx, withTokenLookupTx } from './tx';
 export type { PublicProjectGate, TokenAuthView, TxContext } from './tx';

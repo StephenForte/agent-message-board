@@ -76,8 +76,11 @@ async function ThreadContents({ params, searchParams }: {
   }
   if (thread.project.slug !== project.slug) notFound();
   const history = await getThreadHistory(principal, rootId);
-  const [agentRows, tokenRows] = await Promise.all([listAgents(principal), listTokens(principal)]);
-  const agents = agentRows.map((agent) => ({ id: agent.id, name: agent.name }));
+  const tokenRows = await listTokens(principal);
+  // Agent roster is owner-only (D-039); members still reply without recipient agent hints.
+  const agents = principal.role === 'owner'
+    ? (await listAgents(principal)).map((agent) => ({ id: agent.id, name: agent.name }))
+    : [];
   const prefixes = new Map(tokenRows.map((token) => [token.id, token.prefix]));
   const root = thread.root;
   const snapshot = root.status === 'active' || root.status === 'archived' ? flagSnapshot(root.status, root.urgent, root.pinned, root.version) : null;

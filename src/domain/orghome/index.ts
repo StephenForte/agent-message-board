@@ -59,7 +59,8 @@ export async function getOrgHomeInTx(tx: DbTx, ctx: TxContext): Promise<OrgHome>
   requireOwner(ctx.principal);
   // A transaction client cannot run statements concurrently.
   const projects = await projectSummaries(tx, ctx);
-  const agents = await listAgentsInTx(tx, ctx);
+  // Agent roster is owner-only (D-039); members still see projects and announcements.
+  const agents = ctx.role === 'owner' ? await listAgentsInTx(tx, ctx) : [];
   const announcements = await getAnnouncementsInTx(tx, ctx);
   return {
     projects,

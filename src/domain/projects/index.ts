@@ -1,7 +1,7 @@
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import type { DbTx } from '../../db/client';
 import { agentProjectDefaults, projects, tokenProjectGrants } from '../../db/schema/projects';
-import { accessibleProjectIds, appendEvents, assertProjectAccess, DomainError, isUuid, newId, withIdempotency, withOrgTx, writeAudit } from '../kernel';
+import { accessibleProjectIds, appendEvents, assertProjectAccess, DomainError, isUuid, newId, requireTxOwner, withIdempotency, withOrgTx, writeAudit } from '../kernel';
 import type { Principal, TxContext } from '../kernel';
 
 export function requireOwner(principal: Principal): asserts principal is Extract<Principal, { kind: 'human' }> {
@@ -72,6 +72,7 @@ async function changeProject(principal: Principal, projectId: string, input: { n
   if (input.name !== undefined) textField(input.name, 'name', 200);
   descriptionField(input.description);
   return withOrgTx(principal, async (tx, ctx) => {
+    requireTxOwner(ctx);
     const [before] = await tx.select().from(projects).where(and(eq(projects.id, projectId), eq(projects.orgId, ctx.orgId))).for('update');
     if (!before) throw new DomainError('forbidden_or_not_found');
     const [after] = await tx.update(projects).set({ ...input, updatedAt: new Date() }).where(eq(projects.id, projectId)).returning();
@@ -95,6 +96,7 @@ export function setProjectVisibility(principal: Principal, projectId: string, vi
   requireId(projectId);
   if (visibility !== 'private' && visibility !== 'public') throw new DomainError('validation_failed', { field: 'visibility' });
   return withOrgTx(principal, async (tx, ctx) => {
+    requireTxOwner(ctx);
     const [before] = await tx.select().from(projects).where(and(eq(projects.id, projectId), eq(projects.orgId, ctx.orgId))).for('update');
     if (!before) throw new DomainError('forbidden_or_not_found');
     const [after] = await tx.update(projects).set({ visibility, updatedAt: new Date() }).where(and(eq(projects.id, projectId), eq(projects.orgId, ctx.orgId))).returning();

@@ -18,7 +18,7 @@ export { closeDb };
 type Category = 'note' | 'finding' | 'decision' | 'blocker' | 'handoff';
 
 export function humanPrincipal(userId: string, orgId: string): HumanPrincipal {
-  return { kind: 'human', userId, orgId, siteAdmin: false, interface: 'web', requestId: newId() };
+  return { kind: 'human', userId, orgId, role: orgId ? 'owner' : null, siteAdmin: false, interface: 'web', requestId: newId() };
 }
 
 export async function seedOwner() {

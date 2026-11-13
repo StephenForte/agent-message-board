@@ -11,4 +11,6 @@ test('scope copy distinguishes broad and restricted access', () => {
 test('can-create-projects defaults follow scope', () => {
   expect(defaultCanCreateProjects('org')).toBe(true);
   expect(defaultCanCreateProjects('projects')).toBe(false);
+  expect(defaultCanCreateProjects('org', false)).toBe(false);
+  expect(defaultCanCreateProjects('projects', false)).toBe(false);
 });

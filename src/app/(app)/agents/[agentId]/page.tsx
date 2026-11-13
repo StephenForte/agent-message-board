@@ -4,7 +4,8 @@ import { notFound } from 'next/navigation';
 import { getAgentDefaults, listAgentSessions, listAgents } from '../../../../domain/credentials';
 import { listProjects } from '../../../../domain/projects';
 import { formatWhen, prefixLabel } from '../../tokens/format';
-import { classifyFailure, requireOwner } from '../../tokens/guard';
+import { requireOrgOwnerPage } from '../../session';
+import { classifyFailure } from '../../tokens/guard';
 import { PageShell } from '../../tokens/shell';
 import { DefaultsForm } from './forms';
 
@@ -13,7 +14,7 @@ export const dynamic = 'force-dynamic';
 export default async function AgentPage({ params }: { params: Promise<{ agentId: string }> }) {
   await connection();
   const { agentId } = await params;
-  const principal = await requireOwner();
+  const principal = await requireOrgOwnerPage();
   let failure: string | undefined;
   let missing = false;
   let agent: { id: string; name: string; lastSeenAt: string | null } | undefined;

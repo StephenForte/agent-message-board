@@ -38,7 +38,7 @@ test('reserved organization slugs cover every top-level app route', () => {
 
 test('organization slug rejects reserved names and malformed text', () => {
   expect(parseOrganizationSlug('  acme-board  ')).toBe('acme-board');
-  for (const slug of ['projects', 'sign-in', 'admin', 'api', 'tokens', 'agents', 'connect', 'settings', '_next', 'favicon.ico', 'robots.txt', 'p', 'public', 'static']) {
+  for (const slug of ['projects', 'sign-in', 'admin', 'api', 'tokens', 'agents', 'connect', 'settings', 'join', '_next', 'favicon.ico', 'robots.txt', 'p', 'public', 'static']) {
     expect(() => parseOrganizationSlug(slug)).toThrowError(expect.objectContaining({ code: 'validation_failed', details: expect.objectContaining({ field: 'slug' }) }));
   }
   for (const slug of ['A', 'a', 'ab_c', 'has space', '-ab', 'a'.repeat(41), '', 'Acme']) {

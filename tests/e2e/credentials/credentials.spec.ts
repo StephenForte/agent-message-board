@@ -35,7 +35,7 @@ test.beforeEach(async ({ context }, info) => {
 type Owner = { id: string; email: string; orgId: string };
 
 function humanOf(owner: Owner): HumanPrincipal {
-  return { kind: 'human', userId: owner.id, orgId: owner.orgId, siteAdmin: false, requestId: randomUUID(), interface: 'web' };
+  return { kind: 'human', userId: owner.id, orgId: owner.orgId, role: 'owner', siteAdmin: false, requestId: randomUUID(), interface: 'web' };
 }
 
 async function seedOwner(): Promise<Owner> {

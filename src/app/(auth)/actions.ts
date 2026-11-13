@@ -2,6 +2,7 @@
 import { redirect } from 'next/navigation';
 import { requireHuman, safeActivationReturn, performAuth, AuthActionError } from '../../auth/web';
 import { consumeOwnerActivation, humanLanding } from '../../domain/organizations';
+import { consumeMemberInvite } from '../../domain/members';
 import { DomainError } from '../../domain/kernel';
 import { verificationCallback } from '../../auth/paths';
 
@@ -57,6 +58,26 @@ export async function activate(data: FormData) {
     if (!(error instanceof DomainError)) throw error;
     // Do not echo the credential into the redirect/error URL.
     failure('/no-organization', 'activation-failed');
+  }
+  redirect(await humanLanding(principal));
+}
+export async function joinOrganization(data: FormData) {
+  const principal = await requireHuman();
+  const token = text(data, 'token');
+  try { await consumeMemberInvite(principal, token); }
+  catch (error) {
+    if (!(error instanceof DomainError)) throw error;
+    const reason = typeof error.details.reason === 'string' ? error.details.reason : '';
+    // Stay on the join page so users who already have an org are not sent to
+    // /no-organization (which would either bounce them home or show the wrong state).
+    if (reason.includes('invited, verified email')) {
+      failure(`/join/${token}`, 'wrong-email');
+    }
+    if (reason.includes('already belongs') || reason.includes('already owns')) {
+      failure(`/join/${token}`, 'already-affiliated');
+    }
+    // Do not echo the credential into the redirect/error URL for other failures.
+    failure(`/join/${token}`, 'invite-failed');
   }
   redirect(await humanLanding(principal));
 }

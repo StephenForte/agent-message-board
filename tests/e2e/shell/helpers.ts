@@ -53,7 +53,7 @@ export async function signIn(page: Page, email: string) {
 export async function publishSiteAnnouncement(authorUserId: string, title: string, body: string) {
   process.env.DATABASE_URL = process.env.AMB_E2E_DATABASE_URL;
   const principal = {
-    kind: 'human' as const, userId: authorUserId, orgId: null, siteAdmin: true,
+    kind: 'human' as const, userId: authorUserId, orgId: null, role: null, siteAdmin: true,
     interface: 'web' as const, requestId: `e2e-site-${authorUserId}`,
   };
   try {

@@ -164,7 +164,7 @@ async function measuredHome(principal: HumanPrincipal) {
 }
 
 function human(userId: string, orgId: string | null, siteAdmin = false): HumanPrincipal {
-  return { kind: 'human', userId, orgId, siteAdmin, interface: 'web', requestId: 't08-integration' };
+  return { kind: 'human', userId, orgId, role: orgId ? 'owner' : null, siteAdmin, interface: 'web', requestId: 't08-integration' };
 }
 
 function agentPrincipal(orgId: string): AgentPrincipal {

@@ -36,6 +36,7 @@ test('honours safe request ids and replaces unsafe or secret ids', () => {
 
 test('credential path segments are redacted while ordinary paths retain their names', () => {
   expect(redactRoute('/activate/private-credential?next=secret')).toBe('/activate/[redacted]');
+  expect(redactRoute('/join/private-credential?next=secret')).toBe('/join/[redacted]');
   expect(redactRoute('/api/auth/reset-password/private-credential')).toBe('/api/auth/reset-password/[redacted]');
   expect(redactRoute('/%61ctivate/private-credential/extra')).toBe('/activate/[redacted]');
   expect(redactRoute('//activate/private-credential')).toBe('/activate/[redacted]');

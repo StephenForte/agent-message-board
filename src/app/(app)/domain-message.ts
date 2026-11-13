@@ -16,6 +16,8 @@ export type DomainFailure = {
 export function domainFailure(error: unknown): DomainFailure {
   if (!(error instanceof DomainError)) return { message: 'The page could not be loaded. Try again.' };
   if (error.code === 'forbidden_or_not_found') return { message: 'That page is not available.', notFound: true };
+  // Owner-only pages opened by a member must match a missing route (D-039).
+  if (error.code === 'capability_denied') return { message: 'That page is not available.', notFound: true };
   if (error.code === 'org_suspended') return { message: 'This organization is suspended.', redirect: '/suspended' };
   if (error.code === 'version_conflict') return conflictFailure(error.details.currentVersion, error.details.state);
   const field = typeof error.details.field === 'string' ? error.details.field : undefined;

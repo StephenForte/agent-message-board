@@ -23,10 +23,10 @@ process.env.DATABASE_URL = runtimeUrl();
 afterAll(async () => { await runtime.pool.end(); });
 
 function ownerOf(userId: string, orgId: string): HumanPrincipal {
-  return { kind: 'human', userId, orgId, siteAdmin: false, interface: 'web', requestId: `t20-${userId}` };
+  return { kind: 'human', userId, orgId, role: orgId ? 'owner' : null, siteAdmin: false, interface: 'web', requestId: `t20-${userId}` };
 }
 function adminOf(userId: string): HumanPrincipal {
-  return { kind: 'human', userId, orgId: null, siteAdmin: true, interface: 'web', requestId: `t20-admin-${userId}` };
+  return { kind: 'human', userId, orgId: null, role: null, siteAdmin: true, interface: 'web', requestId: `t20-admin-${userId}` };
 }
 
 async function catchDomain(run: () => Promise<unknown>): Promise<DomainError> {
@@ -272,7 +272,7 @@ test('migration 0002 on populated organizations and projects sets private visibi
   const client = new pg.Client({ connectionString: url.toString() });
   try {
     await client.connect();
-    const earlier = readdirSync('drizzle').filter((file) => /^\d{4}_.*\.sql$/.test(file) && !file.startsWith('0002')).sort();
+    const earlier = readdirSync('drizzle').filter((file) => /^\d{4}_.*\.sql$/.test(file) && Number(file.slice(0, 4)) < 2).sort();
     expect(earlier.map((file) => file.slice(0, 4))).toEqual(['0000', '0001']);
     for (const file of earlier) {
       for (const statement of sqlStatements(readFileSync(`drizzle/${file}`, 'utf8'))) await client.query(statement);

@@ -5,11 +5,13 @@ type Common = {
   requestId: string;
 };
 
-/** Owned org comes from the authenticated user, never from a request argument. */
+/** Org and role come from the authenticated user, never from a request argument. */
 export type HumanPrincipal = Common & {
   kind: 'human';
   userId: string;
   orgId: string | null;
+  /** Hint only — withOrgTx re-reads membership every call. Null when the user has no org. */
+  role: 'owner' | 'member' | null;
   siteAdmin: boolean;
 };
 

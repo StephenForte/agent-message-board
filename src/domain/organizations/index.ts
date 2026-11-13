@@ -3,7 +3,7 @@ import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { getDb, type AppDatabase, type DbTx } from '../../db/client';
 import { user } from '../../db/schema/auth';
-import { organizations, ownerActivations } from '../../db/schema/org';
+import { orgMembers, organizations, ownerActivations } from '../../db/schema/org';
 import { siteAdmins } from '../../db/schema/site-admins';
 import { DomainError, isUuid, newId, withOrgBootstrapTx, withSiteAdminTx, writeAudit,
   type HumanPrincipal, type Principal, type AuditRecord, type TxContext } from '../kernel';
@@ -34,7 +34,7 @@ async function withAdminOrganizationTx<T>(principal: Principal, orgId: string,
     const admin = await assertSiteAdmin(tx, principal);
     const { result, audit } = await fn(tx);
     const ctx: TxContext = { principal: admin, orgId, requestId: admin.requestId,
-      projectIds: [], canCreateProjects: false };
+      projectIds: [], canCreateProjects: false, role: null };
     await writeAudit(tx, ctx, audit);
     return result;
   }, database);
@@ -52,6 +52,8 @@ async function ownerByEmail(tx: DbTx, email: string, orgId: string) {
   const [existing] = await tx.select({ id: organizations.id }).from(organizations)
     .where(eq(organizations.ownerUserId, owner.id));
   if (existing && existing.id !== orgId) invalid('This user already owns an organization');
+  const [membership] = await tx.select({ id: orgMembers.id }).from(orgMembers).where(eq(orgMembers.userId, owner.id));
+  if (membership) invalid('This user already belongs to an organization');
   return owner;
 }
 
@@ -114,6 +116,8 @@ export async function consumeOwnerActivation(principal: Principal, token: string
     }
     const [existing] = await tx.select({ id: organizations.id }).from(organizations).where(eq(organizations.ownerUserId, owner.id));
     if (existing) invalid('This user already owns an organization');
+    const [membership] = await tx.select({ id: orgMembers.id }).from(orgMembers).where(eq(orgMembers.userId, owner.id));
+    if (membership) invalid('This user already belongs to an organization');
     // Single conditional write, within the same transaction as owner assignment.
     const [consumed] = await tx.update(ownerActivations).set({ usedAt: new Date() }).where(and(
       eq(ownerActivations.tokenHash, digest(token)), eq(ownerActivations.orgId, org.id),
@@ -122,7 +126,7 @@ export async function consumeOwnerActivation(principal: Principal, token: string
     )).returning({ id: ownerActivations.id });
     if (!consumed) invalid('Activation link is invalid, expired, or already used');
     await tx.update(organizations).set({ ownerUserId: owner.id, updatedAt: new Date() }).where(eq(organizations.id, org.id));
-    await writeAudit(tx, { principal, orgId: org.id, requestId: principal.requestId, projectIds: [], canCreateProjects: false }, {
+    await writeAudit(tx, { principal, orgId: org.id, requestId: principal.requestId, projectIds: [], canCreateProjects: false, role: null }, {
       action: 'organization.consume_activation', entityType: 'organization', entityId: org.id, after: { ownerUserId: owner.id },
     });
     return { id: org.id };
@@ -186,6 +190,11 @@ export async function listOrganizationsForAdmin(principal: Principal | null, dat
   }, database);
 }
 export async function humanLanding(principal: HumanPrincipal, database = getDb()) {
-  const [org] = await database.select({ status: organizations.status }).from(organizations).where(eq(organizations.ownerUserId, principal.userId));
-  return !org ? '/no-organization' : org.status === 'suspended' ? '/suspended' : '/';
+  const [owned] = await database.select({ status: organizations.status }).from(organizations)
+    .where(eq(organizations.ownerUserId, principal.userId));
+  if (owned) return owned.status === 'suspended' ? '/suspended' : '/';
+  const [membership] = await database.select({ status: organizations.status })
+    .from(orgMembers).innerJoin(organizations, eq(organizations.id, orgMembers.orgId))
+    .where(eq(orgMembers.userId, principal.userId)).limit(1);
+  return !membership ? '/no-organization' : membership.status === 'suspended' ? '/suspended' : '/';
 }
