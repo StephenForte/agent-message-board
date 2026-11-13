@@ -27,6 +27,8 @@ export default async function Join({
     <h1 className="text-2xl font-semibold">Join {invitation.orgName}</h1>
     <p>Use the verified email address {invitation.email}. Each person can belong to one organization.</p>
     {message === 'wrong-email' ? <p role="alert">Sign in with the invited, verified email address ({invitation.email}).</p> : null}
+    {message === 'already-affiliated' ? <p role="alert">You already belong to an organization. Each person can be in only one.</p> : null}
+    {message === 'invite-failed' ? <p role="alert">This invitation could not be used. Ask the owner for a current, unused link.</p> : null}
     {principal ? <form action={joinOrganization}>
       <input type="hidden" name="token" value={token} />
       <button className={buttonClass}>Join organization</button>

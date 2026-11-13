@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { connection } from 'next/server';
 import { listTokens } from '../../../domain/credentials';
+import { withOrgTx } from '../../../domain/kernel';
 import { listProjects } from '../../../domain/projects';
 import type { TokenScope } from './copy';
 import { CreateTokenForm, TokenList, type ProjectChoice, type TokenView } from './forms';
@@ -21,11 +22,14 @@ export default async function TokensPage() {
   let projects: ProjectChoice[] = [];
   let catalog: ProjectChoice[] = [];
   let views: TokenView[] = [];
+  let allowCreateProjects = false;
   try {
-    const [tokens, named] = await Promise.all([
+    const [tokens, named, createFlag] = await Promise.all([
       listTokens(principal),
       listProjects(principal, { includeArchived: true }),
+      withOrgTx(principal, async (_tx, ctx) => ctx.canCreateProjects),
     ]);
+    allowCreateProjects = createFlag;
     const names = new Map(named.map((project) => [project.id, project.name]));
     catalog = named.map((project) => ({ id: project.id, name: project.name, archived: project.status === 'archived' }));
     projects = catalog.filter((project) => !project.archived);
@@ -51,7 +55,7 @@ export default async function TokensPage() {
   return <PageShell title="Tokens">
     <section aria-label="Create a token" className="space-y-4">
       <h2 className="text-xl font-semibold">Create a token</h2>
-      <CreateTokenForm projects={projects} />
+      <CreateTokenForm projects={projects} allowCreateProjects={allowCreateProjects} />
     </section>
     <section aria-label="Token list" className="space-y-4">
       <h2 className="text-xl font-semibold">Your tokens</h2>

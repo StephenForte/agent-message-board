@@ -83,17 +83,18 @@ function ProjectChoices({ projects, selected, onToggle }: {
   </ul>;
 }
 
-function CreateTokenFields({ projects, action, pending }: {
+function CreateTokenFields({ projects, allowCreateProjects, action, pending }: {
   projects: ProjectChoice[];
+  allowCreateProjects: boolean;
   action: (data: FormData) => void | Promise<void>;
   pending: boolean;
 }) {
   const [scope, setScope] = useState<TokenScope>('org');
-  const [canCreate, setCanCreate] = useState(true);
+  const [canCreate, setCanCreate] = useState(() => defaultCanCreateProjects('org', allowCreateProjects));
   const [picked, setPicked] = useState<ReadonlySet<string>>(() => new Set());
   function choose(next: TokenScope) {
     setScope(next);
-    setCanCreate(defaultCanCreateProjects(next));
+    setCanCreate(defaultCanCreateProjects(next, allowCreateProjects));
   }
   function toggle(id: string, checked: boolean) {
     setPicked((current) => {
@@ -119,15 +120,23 @@ function CreateTokenFields({ projects, action, pending }: {
       <ProjectChoices projects={projects} selected={picked} onToggle={toggle} />
     </fieldset> : null}
     <label className="flex items-center gap-2">
-      <input type="checkbox" name="canCreateProjects" value="true" checked={canCreate} onChange={(event) => setCanCreate(event.target.checked)} />
+      <input
+        type="checkbox"
+        name="canCreateProjects"
+        value="true"
+        checked={canCreate}
+        disabled={!allowCreateProjects}
+        onChange={(event) => setCanCreate(event.target.checked)}
+      />
       Can create projects
     </label>
+    {!allowCreateProjects ? <p className="text-sm text-stone-600">Your membership does not allow project creation on tokens.</p> : null}
     <ExpiryField />
     <button disabled={pending} className={primaryButton}>{pending ? 'Creating token…' : 'Create token'}</button>
   </form>;
 }
 
-export function CreateTokenForm({ projects }: { projects: ProjectChoice[] }) {
+export function CreateTokenForm({ projects, allowCreateProjects }: { projects: ProjectChoice[]; allowCreateProjects: boolean }) {
   const [generation, setGeneration] = useState(0);
   const [state, action, pending] = useActionState(async (previous: SecretState, data: FormData) => {
     const result = await createTokenAction(previous, data);
@@ -135,7 +144,7 @@ export function CreateTokenForm({ projects }: { projects: ProjectChoice[] }) {
     return result;
   }, blankSecret);
   return <div className="space-y-4">
-    <CreateTokenFields key={generation} projects={projects} action={action} pending={pending} />
+    <CreateTokenFields key={generation} projects={projects} allowCreateProjects={allowCreateProjects} action={action} pending={pending} />
     {state.message ? <p role="status">{state.message}</p> : null}
     {state.secret && state.prefix ? <SecretReveal secret={state.secret} prefix={state.prefix} /> : null}
   </div>;

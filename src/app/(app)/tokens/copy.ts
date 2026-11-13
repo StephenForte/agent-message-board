@@ -6,7 +6,8 @@ export function scopeCopy(scope: TokenScope): string {
   return 'Restricted access includes only the listed projects.';
 }
 
-/** Broad tokens start allowed to create projects. Restricted tokens do not. */
-export function defaultCanCreateProjects(scope: TokenScope): boolean {
-  return scope === 'org';
+/** Broad tokens start allowed to create projects. Restricted tokens do not.
+ *  `allowCreateProjects` is the actor's current permission (false for typical members). */
+export function defaultCanCreateProjects(scope: TokenScope, allowCreateProjects = true): boolean {
+  return allowCreateProjects && scope === 'org';
 }

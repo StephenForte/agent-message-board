@@ -68,11 +68,16 @@ export async function joinOrganization(data: FormData) {
   catch (error) {
     if (!(error instanceof DomainError)) throw error;
     const reason = typeof error.details.reason === 'string' ? error.details.reason : '';
+    // Stay on the join page so users who already have an org are not sent to
+    // /no-organization (which would either bounce them home or show the wrong state).
     if (reason.includes('invited, verified email')) {
       failure(`/join/${token}`, 'wrong-email');
     }
+    if (reason.includes('already belongs') || reason.includes('already owns')) {
+      failure(`/join/${token}`, 'already-affiliated');
+    }
     // Do not echo the credential into the redirect/error URL for other failures.
-    failure('/no-organization', 'invite-failed');
+    failure(`/join/${token}`, 'invite-failed');
   }
   redirect(await humanLanding(principal));
 }
