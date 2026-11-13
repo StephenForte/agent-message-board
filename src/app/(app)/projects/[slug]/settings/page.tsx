@@ -1,13 +1,13 @@
 import Link from 'next/link';
 import { getProjectBySlug } from '../../../../../domain/projects';
-import { ownerPrincipal, raiseDomain } from '../../../session';
+import { raiseDomain, requireOrgOwnerPage } from '../../../session';
 import { archiveProjectAction, renameProject, restoreProjectAction, setVisibility } from './actions';
 import { ArchiveForm, RenameForm, RestoreForm, VisibilityForm } from './forms';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ProjectSettingsPage({ params }: { params: Promise<{ slug: string }> }) {
-  const principal = await ownerPrincipal();
+  const principal = await requireOrgOwnerPage();
   const { slug } = await params;
   let project: Awaited<ReturnType<typeof getProjectBySlug>>;
   try {

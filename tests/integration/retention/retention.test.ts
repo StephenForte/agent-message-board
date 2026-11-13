@@ -26,7 +26,7 @@ type Seed = Awaited<ReturnType<typeof seedOrg>> & { owner: HumanPrincipal };
 async function makeOrg(name: string): Promise<Seed> {
   const seed = await seedOrg(admin.db, name);
   const owner: HumanPrincipal = {
-    kind: 'human', orgId: seed.orgId, userId: seed.userId, siteAdmin: false, requestId: `t18-${name}`, interface: 'web',
+    kind: 'human', orgId: seed.orgId, role: 'owner', userId: seed.userId, siteAdmin: false, requestId: `t18-${name}`, interface: 'web',
   };
   return { ...seed, owner };
 }

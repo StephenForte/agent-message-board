@@ -27,7 +27,7 @@ async function seedSiteAdmin() {
       id: newId(), userId: id, accountId: id, providerId: 'credential', password: await hashPassword(password),
     });
     await db.insert(siteAdmins).values({ userId: id });
-    const principal: HumanPrincipal = { kind: 'human', userId: id, orgId: null, siteAdmin: true, interface: 'web', requestId: newId() };
+    const principal: HumanPrincipal = { kind: 'human', userId: id, orgId: null, role: null, siteAdmin: true, interface: 'web', requestId: newId() };
     return { id, email, principal };
   });
 }

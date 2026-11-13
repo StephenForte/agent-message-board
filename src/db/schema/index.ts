@@ -3,7 +3,7 @@ export { announcementRevisions, announcements } from './announcements';
 export { agentTokens, agents } from './identity';
 export { messageRecipients, messages } from './messages';
 export { auditRecords, events, idempotencyRecords, rateLimitWindows } from './ops';
-export { orgEventCounters, organizations, ownerActivations } from './org';
+export { memberInvitations, orgEventCounters, orgMembers, organizations, ownerActivations } from './org';
 export { agentProjectDefaults, projects, tokenProjectGrants } from './projects';
 export { agentSessionProjects, agentSessions } from './sessions';
 export { siteAdmins } from './site-admins';
@@ -40,4 +40,6 @@ export const rlsExemptTableNames = [
   'site_admins',
   'organizations',
   'owner_activations',
+  'org_members',
+  'member_invitations',
 ] as const;

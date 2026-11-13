@@ -16,6 +16,7 @@ export async function requireOwner(): Promise<HumanPrincipal> {
 export function classifyFailure(error: unknown): 'missing' | { message: string } {
   unstable_rethrow(error);
   if (error instanceof DomainError && error.code === 'forbidden_or_not_found') return 'missing';
+  if (error instanceof DomainError && error.code === 'capability_denied') return 'missing';
   if (error instanceof DomainError && error.code === 'org_suspended') redirect('/suspended');
   if (error instanceof DomainError) return { message: plainDomainMessage(error) };
   throw new Error('This page is unavailable. Please try again.');

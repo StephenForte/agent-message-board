@@ -72,7 +72,7 @@ export default async function OrgHomePage({ searchParams }: { searchParams: Prom
             {rows.length > 0 ? <ThreadList>{rows.map((item) => <li key={item.id}>
               <ThreadRow thread={toThreadRow(project.slug, item)} headingId={`home-${project.id}-${item.id}`} />
             </li>)}</ThreadList> : null}
-            <Link href={`/projects/${project.slug}/settings`} className="underline">Settings for {project.name}</Link>
+            {principal.role === 'owner' ? <Link href={`/projects/${project.slug}/settings`} className="underline">Settings for {project.name}</Link> : null}
           </article>
         </li>;
       })}</ul>}

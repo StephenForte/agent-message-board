@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
-  bigint, check, pgTable, text, timestamp, uniqueIndex, uuid,
+  bigint, boolean, check, pgTable, text, timestamp, unique, uniqueIndex, uuid,
 } from 'drizzle-orm/pg-core';
 import { user } from './auth';
 import { tenantPolicy } from './policies';
@@ -37,6 +37,34 @@ export const ownerActivations = pgTable('owner_activations', {
 }, (table) => [
   check('owner_activations_token_hash', sql`${table.tokenHash} ~ '^[0-9a-f]{64}$'`),
   check('owner_activations_email_len', sql`char_length(${table.email}) between 3 and 320`),
+]);
+
+/** Members only — the owner stays on organizations.owner_user_id and has no row here. */
+export const orgMembers = pgTable('org_members', {
+  id: uuid('id').primaryKey(),
+  orgId: uuid('org_id').notNull().references(() => organizations.id),
+  userId: text('user_id').notNull().references(() => user.id),
+  canCreateProjects: boolean('can_create_projects').notNull().default(false),
+  ...timestamps,
+}, (table) => [
+  unique('org_members_org_id_user_id').on(table.orgId, table.userId),
+  uniqueIndex('org_members_user_id_unique').on(table.userId),
+]);
+
+export const memberInvitations = pgTable('member_invitations', {
+  id: uuid('id').primaryKey(),
+  tokenHash: text('token_hash').notNull().unique(),
+  email: text('email').notNull(),
+  orgId: uuid('org_id').notNull().references(() => organizations.id),
+  canCreateProjects: boolean('can_create_projects').notNull().default(false),
+  expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true, mode: 'date' }),
+  revokedAt: timestamp('revoked_at', { withTimezone: true, mode: 'date' }),
+  createdByUserId: text('created_by_user_id').notNull().references(() => user.id),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+}, (table) => [
+  check('member_invitations_token_hash', sql`${table.tokenHash} ~ '^[0-9a-f]{64}$'`),
+  check('member_invitations_email_len', sql`char_length(${table.email}) between 3 and 320`),
 ]);
 
 export const orgEventCounters = pgTable('org_event_counters', {

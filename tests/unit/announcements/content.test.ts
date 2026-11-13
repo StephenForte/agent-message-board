@@ -18,7 +18,7 @@ import {
 
 const human: HumanPrincipal = {
   kind: 'human', userId: 'user-1', orgId: '00000000-0000-7000-8000-000000000001',
-  siteAdmin: true, interface: 'web', requestId: 'req-human',
+  role: 'owner', siteAdmin: true, interface: 'web', requestId: 'req-human',
 };
 
 const agent: AgentPrincipal = {

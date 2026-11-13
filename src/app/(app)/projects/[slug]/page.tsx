@@ -31,7 +31,10 @@ async function BoardContents({ params, searchParams }: {
   const { slug } = await params;
   const filters = parseBoardQuery(await searchParams);
   const { principal, project } = await loadHumanProject(slug);
-  const agents = (await listAgents(principal)).map((agent) => ({ id: agent.id, name: agent.name }));
+  // Agent roster is owner-only (D-039); members still post with empty recipient hints.
+  const agents = principal.role === 'owner'
+    ? (await listAgents(principal)).map((agent) => ({ id: agent.id, name: agent.name }))
+    : [];
   const showUrgent = filters.urgent === undefined;
   const showPinned = filters.pinned === undefined;
   const sectionInput = { cursor: null as string | null };

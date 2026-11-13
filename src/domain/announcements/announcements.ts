@@ -140,7 +140,10 @@ export async function listAnnouncementRevisions(
   const limit = assertRevisionLimit(input.limit);
   const db = database ?? getDb();
   if (scope === 'org') {
-    return withOrgTx(human, (tx, ctx) => readRevisions(tx, scope, ctx.orgId, limit), db);
+    return withOrgTx(human, (tx, ctx) => {
+      if (ctx.role !== 'owner') throw new DomainError('capability_denied');
+      return readRevisions(tx, scope, ctx.orgId, limit);
+    }, db);
   }
   return withSiteAdminTx(async (tx) => {
     await assertCurrentSiteAdmin(tx, human.userId);
@@ -157,6 +160,7 @@ export async function setOrgAnnouncement(
   const content = assertAnnouncementContent(input.title, input.body);
   const expectedVersion = assertExpectedVersion(input.expectedVersion);
   return withOrgTx(human, async (tx, ctx) => {
+    if (ctx.role !== 'owner') throw new DomainError('capability_denied');
     const applied = await applyMutation(tx, {
       scope: 'org',
       orgId: ctx.orgId,
@@ -185,6 +189,7 @@ export async function clearOrgAnnouncement(
   const human = assertHuman(principal);
   const expectedVersion = assertExpectedVersion(input.expectedVersion);
   return withOrgTx(human, async (tx, ctx) => {
+    if (ctx.role !== 'owner') throw new DomainError('capability_denied');
     const applied = await applyMutation(tx, {
       scope: 'org',
       orgId: ctx.orgId,

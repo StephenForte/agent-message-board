@@ -31,15 +31,18 @@ function NavLink({ href, children, current }: { href: string; children: React.Re
     className={`block rounded px-3 py-2 ${current ? 'bg-stone-100 font-medium text-stone-950' : 'text-stone-800 hover:bg-stone-100'}`}>{children}</Link>;
 }
 
-export function AppShell({ name, siteAdmin, projects, children }: {
+export function AppShell({ name, siteAdmin, role, canCreateProjects, projects, children }: {
   name: string;
   siteAdmin: boolean;
+  role: 'owner' | 'member';
+  canCreateProjects: boolean;
   projects: ProjectLink[];
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const [openedAt, setOpenedAt] = useState<string | null>(null);
   const open = openedAt === pathname;
+  const isOwner = role === 'owner';
   const projectCurrent = (slug: string) => pathname === `/projects/${slug}` || pathname.startsWith(`/projects/${slug}/`);
   return <div className="flex min-h-screen flex-col bg-stone-50 text-stone-900">
     <header className="sticky top-0 z-20 flex flex-wrap items-center gap-3 border-b border-stone-200 bg-white px-3 py-3 md:px-4">
@@ -62,11 +65,12 @@ export function AppShell({ name, siteAdmin, projects, children }: {
         {projects.length === 0 ? <p className="px-3 py-2 text-sm text-stone-500">No active projects</p> : projects.map((project) => (
           <NavLink key={project.slug} href={`/projects/${encodeURIComponent(project.slug)}`} current={projectCurrent(project.slug)}>{project.name}</NavLink>
         ))}
+        {canCreateProjects ? <NavLink href="/projects" current={pathname === '/projects'}>New project</NavLink> : null}
         <p className="px-3 pt-3 text-xs font-medium uppercase tracking-wide text-stone-500">Account</p>
         <NavLink href="/tokens" current={pathname === '/tokens' || pathname.startsWith('/tokens/')}>Tokens</NavLink>
-        <NavLink href="/agents" current={pathname === '/agents' || pathname.startsWith('/agents/')}>Agents</NavLink>
-        <NavLink href="/connect" current={pathname === '/connect' || pathname.startsWith('/connect/')}>Connect</NavLink>
-        <NavLink href="/settings" current={pathname === '/settings' || pathname.startsWith('/settings/')}>Settings</NavLink>
+        {isOwner ? <NavLink href="/agents" current={pathname === '/agents' || pathname.startsWith('/agents/')}>Agents</NavLink> : null}
+        <NavLink href="/connect" current={pathname === '/connect' || pathname.startsWith('/connect/')}>Connect an agent</NavLink>
+        {isOwner ? <NavLink href="/settings" current={pathname === '/settings' || pathname.startsWith('/settings/')}>Settings</NavLink> : null}
         {siteAdmin ? <NavLink href="/admin" current={pathname === '/admin' || pathname.startsWith('/admin/')}>Admin</NavLink> : null}
       </nav>
       <div className="min-w-0 flex-1 px-4 py-6 md:px-8">

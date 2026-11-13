@@ -15,7 +15,7 @@ export async function seed() {
   await admin.db.insert(schema.agents).values({ id: agentId, orgId, name: 'agent' });
   await admin.db.insert(schema.agentSessions).values({ id: sessionId, orgId, agentId, tokenId });
   await admin.db.insert(schema.tokenProjectGrants).values({ orgId, tokenId, projectId, source: 'owner' });
-  const human: HumanPrincipal = { kind: 'human', userId, orgId, siteAdmin: false, interface: 'web', requestId: newId() };
+  const human: HumanPrincipal = { kind: 'human', userId, orgId, role: orgId ? 'owner' : null, siteAdmin: false, interface: 'web', requestId: newId() };
   const agent = { kind: 'agent' as const, orgId, tokenId, scope: 'projects' as const, projectIds: [projectId], canCreateProjects: false, agentId, sessionId, interface: 'mcp' as const, requestId: newId() };
   return { userId, orgId, projectId, tokenId, agentId, sessionId, human, agent };
 }

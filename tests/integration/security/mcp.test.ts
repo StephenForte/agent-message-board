@@ -39,7 +39,7 @@ function noLeak(raw: string, markers: string[]) {
 }
 async function fixture() {
   const seed = await seedOrg(admin.db, 'security');
-  const owner: HumanPrincipal = { kind: 'human', userId: seed.userId, orgId: seed.orgId, siteAdmin: false, interface: 'web', requestId: newId() };
+  const owner: HumanPrincipal = { kind: 'human', userId: seed.userId, orgId: seed.orgId, role: 'owner', siteAdmin: false, interface: 'web', requestId: newId() };
   const issued = await credentials.createToken(owner, { label: 'broad', scope: 'org' });
   const broad = await connection(issued.secret);
   return { ...seed, owner, issued, broad };

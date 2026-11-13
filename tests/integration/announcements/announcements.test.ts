@@ -318,7 +318,7 @@ test('site history is admin-only, has no audit row, and defaults to 20 revisions
 });
 
 function human(userId: string, orgId: string | null, requestId: string, siteAdminFlag: boolean): HumanPrincipal {
-  return { kind: 'human', userId, orgId, siteAdmin: siteAdminFlag, interface: 'web', requestId };
+  return { kind: 'human', userId, orgId, role: orgId ? 'owner' : null, siteAdmin: siteAdminFlag, interface: 'web', requestId };
 }
 
 function owner(seed: OrgSeed, requestId: string): HumanPrincipal {

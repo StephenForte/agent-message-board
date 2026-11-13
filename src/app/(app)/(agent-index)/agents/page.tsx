@@ -3,14 +3,15 @@ import { notFound } from 'next/navigation';
 import { connection } from 'next/server';
 import { listAgents } from '../../../../domain/credentials';
 import { formatWhen } from '../../tokens/format';
-import { classifyFailure, requireOwner } from '../../tokens/guard';
+import { requireOrgOwnerPage } from '../../session';
+import { classifyFailure } from '../../tokens/guard';
 import { PageShell } from '../../tokens/shell';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AgentsPage() {
+  const principal = await requireOrgOwnerPage();
   await connection();
-  const principal = await requireOwner();
   let failure: string | undefined;
   let missing = false;
   let agents: Awaited<ReturnType<typeof listAgents>> = [];

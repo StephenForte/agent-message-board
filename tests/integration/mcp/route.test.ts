@@ -26,7 +26,7 @@ async function fixture() {
   // Restore the log spy after tests that inject domain failures.
   logger = vi.spyOn(console, 'log').mockImplementation(() => {});
   const seed = await seedOrg(admin.db, 'mcp');
-  const owner: HumanPrincipal = { kind: 'human', orgId: seed.orgId, userId: seed.userId, siteAdmin: false, interface: 'web', requestId: newId() };
+  const owner: HumanPrincipal = { kind: 'human', orgId: seed.orgId, role: 'owner', userId: seed.userId, siteAdmin: false, interface: 'web', requestId: newId() };
   const issued = await createToken(owner, { label: 'mcp', scope: 'org' });
   const secret = issued.secret;
   const connect = await call(secret, 'connect_agent', { name: 'mcp-agent' });

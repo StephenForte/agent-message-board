@@ -38,7 +38,7 @@ export const SMOKE_ENVELOPE: Envelope = {
 const BATCH = 100;
 
 function principal(userId: string, orgId: string): HumanPrincipal {
-  return { kind: 'human', userId, orgId, siteAdmin: false, interface: 'web', requestId: newId() };
+  return { kind: 'human', userId, orgId, role: orgId ? 'owner' : null, siteAdmin: false, interface: 'web', requestId: newId() };
 }
 
 type PlannedRoot = {
@@ -221,7 +221,7 @@ export async function seedEnvelope(envelope: Envelope, manifestPath: string): Pr
     });
     await db.insert(siteAdmins).values({ userId: adminId });
     await setSiteAnnouncement({
-      kind: 'human', userId: adminId, orgId: null, siteAdmin: true, interface: 'web', requestId: newId(),
+      kind: 'human', userId: adminId, orgId: null, role: null, siteAdmin: true, interface: 'web', requestId: newId(),
     }, {
       title: 'Site announcement',
       body: 'Pilot-envelope site announcement. It is present on every board check.',

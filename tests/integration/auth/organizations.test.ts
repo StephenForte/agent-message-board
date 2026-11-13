@@ -18,7 +18,7 @@ afterAll(() => runtime.pool.end());
 async function human(verified = true) {
   const id = newId(); const email = `t03-${id}@example.com`;
   await db.insert(user).values({ id, email, name: 'T03', emailVerified: verified });
-  const principal: HumanPrincipal = { kind: 'human', userId: id, orgId: null, siteAdmin: false, interface: 'web', requestId: `t03-${id}` };
+  const principal: HumanPrincipal = { kind: 'human', userId: id, orgId: null, role: null, siteAdmin: false, interface: 'web', requestId: `t03-${id}` };
   return { id, email, principal };
 }
 async function admin() {
