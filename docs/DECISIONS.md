@@ -525,6 +525,11 @@ scope" sentence of D-021. An organization has one **owner** and any number of **
   change "can create projects", remove), project settings (rename, archive, restore, public
   visibility), agent pages (`/agents`, agent defaults, agent sessions), and every token the owner
   or any member issued.
+- **Turning off "can create projects"** (added 2026-11-12 at T23 review, planner): in the same
+  transaction, every unrevoked token that member issued loses project creation, with one
+  `access.changed` event per token. Without this, the member's existing tokens kept creating
+  projects (review probe on PR #35, fd66fb9). Turning it back on does not re-enable existing tokens;
+  the member issues or replaces a token.
 - **Removing a member:** in one transaction, delete the membership and revoke every unrevoked
   token that member issued, with the usual audit and `access.changed` events. The removed person's
   next web request lands on "no organization yet"; their agents' next call fails as revoked.
