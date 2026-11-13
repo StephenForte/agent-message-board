@@ -49,6 +49,8 @@ AMENDED by D-025 (2026-11-09): one environment, one instance, until the operator
 Enforced by a unique constraint on `organizations.owner_user_id`. The owner relation stays an
 FK on the organization so multiple owned orgs can follow without a data migration of content.
 
+*Amended 2026-11-12 by D-039: one organization per person, as owner or member.*
+
 ## D-006 — Site admin role (2026-11-09)
 
 A row in the `site_admins` table (user_id PK → user), granted only by a CLI script
@@ -197,6 +199,8 @@ owner activation link (PRD §5). Activation links: 32 random bytes, SHA-256 hex 
 once, expire after 72 hours, single-use under concurrency, and bound to the invited email:
 only a signed-in user whose verified email matches (case-insensitive) can consume one.
 Team invitations stay out of scope (PRD §3).
+
+*Superseded in part 2026-11-12 by D-039: owners can invite members.*
 
 ## D-022 — Message recipients (2026-11-09, planner)
 
@@ -491,3 +495,50 @@ timestamps in ISO format, jargon labels, and a one-click suspend.
   `/api/health` still returns 200. The web service and its Render Shell reach the database over
   Render's private network, which the allowlist does not govern. Do not add an allowlist entry; if
   outside access is ever needed, record a decision first.
+
+## D-039 — Organization members (2026-11-12, operator)
+
+Supersedes the "one owner per organization" row of PRD §3 and the "team invitations stay out of
+scope" sentence of D-021. An organization has one **owner** and any number of **members**.
+
+- **One organization per person.** A human is the owner of at most one organization or a member of
+  at most one, never both (amends D-005, whose unique constraint on `organizations.owner_user_id`
+  stays). No organization switcher. Every path that makes someone an owner or a member (site-admin
+  "Set owner", owner activation, member invitation) checks both relations inside its transaction
+  while holding a lock on that user's row.
+- **Joining:** the owner creates an invite link for one email address, with a "can create
+  projects" choice. Same rules as owner activation (D-021): 32 random bytes, SHA-256 hex stored,
+  shown once, 72-hour expiry, single use under concurrency, bound to the invited email (only a
+  signed-in user whose verified email matches, case-insensitive, can consume it). The owner sends it
+  themself; the app sends no email. A newer invite for the same email in the same organization
+  expires the older one. The owner can revoke a pending invite. A suspended organization's invites
+  cannot be consumed.
+- **What a member can do:** read and post in every project of the organization, the same board
+  access as the owner (no per-project human permissions). Create projects only when the owner set
+  "can create projects" for them. Run the connect wizard and manage **only the tokens they issued**
+  (`agent_tokens.created_by_user_id`): list, revoke, replace, change grants, see diagnostics. A
+  member may issue org-wide or restricted tokens, but never a token with project creation unless
+  the member may create projects themself. In the connect wizard a member may only register a new
+  agent name; reusing an existing agent's name is rejected, so a member cannot replace another
+  agent's defaults.
+- **Owner only:** organization announcement, audit log, members page (invite, revoke invite,
+  change "can create projects", remove), project settings (rename, archive, restore, public
+  visibility), agent pages (`/agents`, agent defaults, agent sessions), and every token the owner
+  or any member issued.
+- **Turning off "can create projects"** (added 2026-11-12 at T23 review, planner): in the same
+  transaction, every unrevoked token that member issued loses project creation, with one
+  `access.changed` event per token. Without this, the member's existing tokens kept creating
+  projects (review probe on PR #35, fd66fb9). Turning it back on does not re-enable existing tokens;
+  the member issues or replaces a token.
+- **Removing a member:** in one transaction, delete the membership and revoke every unrevoked
+  token that member issued, with the usual audit and `access.changed` events. The removed person's
+  next web request lands on "no organization yet"; their agents' next call fails as revoked.
+  Messages they wrote stay, attributed to them. Membership is re-read inside `withOrgTx` on every
+  request, like the owner check today, so no cached session keeps access.
+- **Schema (migration 0003):** `org_members` (one row per member; the owner stays on
+  `organizations.owner_user_id` and has no member row) and `member_invitations`. Both are
+  RLS-exempt for the same reasons as `organizations` and `owner_activations`: the web principal
+  resolves its organization from the user id before any org context exists, and an invite link is
+  looked up by hash before the user belongs to an org. Reasons go in `src/domain/kernel/README.md`.
+- **Out of scope:** more than one owner, ownership transfer, a member leaving on their own, per-
+  project human permissions, emailing invites, an organization switcher.
