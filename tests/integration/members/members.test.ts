@@ -6,7 +6,8 @@ import { user } from '../../../src/db/schema/auth';
 import { agentTokens } from '../../../src/db/schema/identity';
 import { memberInvitations, orgMembers, organizations } from '../../../src/db/schema/org';
 import { agentProjectDefaults } from '../../../src/db/schema/projects';
-import { DomainError, newId, type HumanPrincipal } from '../../../src/domain/kernel';
+import { events } from '../../../src/db/schema/ops';
+import { DomainError, newId, withOrgTx, type HumanPrincipal } from '../../../src/domain/kernel';
 import {
   createMemberInvite, consumeMemberInvite, listMembers, removeMember, revokeMemberInvite,
   setMemberCanCreateProjects,
@@ -176,6 +177,51 @@ test('member connect wizard rejects existing agent names', async () => {
     agentName: 'member-bot', token: { label: 'member-new', scope: 'org' }, defaultProjectIds: [seed.projectId],
   });
   expect(created.agent.name).toBe('member-bot');
+});
+
+test('downgrading can-create strips that members live tokens only', async () => {
+  const seed = await seedOrg(admin.db, 'm-downgrade');
+  const owner = ownerOf(seed);
+  const personA = await verifiedUser('down-a');
+  const personB = await verifiedUser('down-b');
+  const memberA = await addMember(owner, personA, true);
+  const memberB = await addMember(owner, personB, true);
+  const ownerTok = await createToken(owner, { label: 'owner-create', scope: 'org', canCreateProjects: true });
+  const aTok = await createToken(memberA, { label: 'a-create', scope: 'org', canCreateProjects: true });
+  const bTok = await createToken(memberB, { label: 'b-create', scope: 'org', canCreateProjects: true });
+  expect(aTok.token.canCreateProjects).toBe(true);
+
+  const [row] = await admin.db.select({ id: orgMembers.id }).from(orgMembers)
+    .where(and(eq(orgMembers.orgId, seed.orgId), eq(orgMembers.userId, personA.id)));
+  const beforeEvents = await admin.db.select({ seq: events.seq }).from(events)
+    .where(and(eq(events.orgId, seed.orgId), eq(events.entityId, aTok.token.id)));
+  const updated = await setMemberCanCreateProjects(owner, row!.id, false, admin.db);
+  expect(updated).toMatchObject({ canCreateProjects: false, tokensLostCreate: 1 });
+
+  const [aRow] = await admin.db.select().from(agentTokens).where(eq(agentTokens.id, aTok.token.id));
+  const [bRow] = await admin.db.select().from(agentTokens).where(eq(agentTokens.id, bTok.token.id));
+  const [oRow] = await admin.db.select().from(agentTokens).where(eq(agentTokens.id, ownerTok.token.id));
+  expect(aRow.canCreateProjects).toBe(false);
+  expect(bRow.canCreateProjects).toBe(true);
+  expect(oRow.canCreateProjects).toBe(true);
+
+  const changed = await admin.db.select().from(events).where(and(
+    eq(events.orgId, seed.orgId),
+    eq(events.kind, 'access.changed'),
+    eq(events.entityType, 'credential'),
+    eq(events.entityId, aTok.token.id),
+  ));
+  expect(changed.length - beforeEvents.length).toBe(1);
+
+  const agent = await authenticateBearer(`Bearer ${aTok.secret}`, { requestId: newId(), interface: 'mcp' });
+  const canCreate = await withOrgTx(agent, async (_tx, ctx) => ctx.canCreateProjects, runtime.db);
+  expect(canCreate).toBe(false);
+  await expect(createProject(agent, { name: 'No', slug: `n${newId().replaceAll('-', '').slice(0, 10)}`, idempotencyKey: newId() }))
+    .rejects.toMatchObject({ code: 'capability_denied' });
+
+  await setMemberCanCreateProjects(owner, row!.id, true, admin.db);
+  const [aAfter] = await admin.db.select().from(agentTokens).where(eq(agentTokens.id, aTok.token.id));
+  expect(aAfter.canCreateProjects).toBe(false);
 });
 
 test('remove member revokes only that members tokens', async () => {

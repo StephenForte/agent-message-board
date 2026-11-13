@@ -154,12 +154,29 @@ export async function setMemberCanCreateProjects(
     const [after] = await tx.update(orgMembers).set({
       canCreateProjects, updatedAt: new Date(),
     }).where(eq(orgMembers.id, memberId)).returning();
+    // D-039: turning the flag off strips create from that member's live tokens.
+    // Turning it back on does not re-enable existing tokens.
+    let tokensLostCreate = 0;
+    if (!canCreateProjects) {
+      const stripped = await tx.update(agentTokens).set({
+        canCreateProjects: false, updatedAt: new Date(),
+      }).where(and(
+        eq(agentTokens.orgId, ctx.orgId),
+        eq(agentTokens.createdByUserId, before.userId),
+        eq(agentTokens.canCreateProjects, true),
+        isNull(agentTokens.revokedAt),
+      )).returning({ id: agentTokens.id });
+      tokensLostCreate = stripped.length;
+      for (const token of stripped) {
+        await appendEvents(tx, ctx.orgId, [{ kind: 'access.changed', entityType: 'credential', entityId: token.id }]);
+      }
+    }
     await writeAudit(tx, ctx, {
       action: 'member.update', entityType: 'org_member', entityId: memberId,
       before: { canCreateProjects: before.canCreateProjects },
-      after: { canCreateProjects: after!.canCreateProjects },
+      after: { canCreateProjects: after!.canCreateProjects, tokensLostCreate },
     });
-    return { id: memberId, canCreateProjects: after!.canCreateProjects };
+    return { id: memberId, canCreateProjects: after!.canCreateProjects, tokensLostCreate };
   }, database);
 }
 
