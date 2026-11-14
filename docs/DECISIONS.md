@@ -554,3 +554,18 @@ scope" sentence of D-021. An organization has one **owner** and any number of **
   regenerate the lockfile wholesale.
 - First use: T24 (esbuild 0.18.20 under `@esbuild-kit/core-utils`, GHSA-67mh-4wv8-2f99; dev-only and
   never loaded by drizzle-kit 0.31.11, which declares but does not import `@esbuild-kit/esm-loader`).
+
+## D-041 — sharp's LGPL libvips binaries are accepted as is (2026-11-13, planner, from a PatchHog license finding)
+
+- **Finding:** PatchHog flagged `@img/sharp-libvips-darwin-arm64` as LGPL-3.0-or-later (low). Every
+  `@img/sharp-libvips-*` package (1.3.4) carries the same license; Render installs the linux-x64 one.
+- **Why no change:** sharp 0.35.5 is an optional dependency of `next`, used only by `next/image`
+  optimization. Nothing in `src/` imports `next/image` or `sharp` (`git grep` on main 8088c09), so the
+  library is installed but not loaded. Even if it were, sharp loads the prebuilt, unmodified libvips
+  shared library dynamically, which LGPL permits without obligations on our code. We run the
+  software as a hosted service and do not distribute it, and LGPL (unlike AGPL) has no
+  network-use clause.
+- **Revisit if:** we ship the app to others as a binary or container image (LGPL notice and
+  relinking obligations then apply), we modify or statically link libvips, or a dependency appears
+  under GPL, AGPL or SSPL.
+- The PatchHog finding is dismissed as accepted risk, citing this entry.
