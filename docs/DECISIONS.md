@@ -542,3 +542,15 @@ scope" sentence of D-021. An organization has one **owner** and any number of **
   looked up by hash before the user belongs to an org. Reasons go in `src/domain/kernel/README.md`.
 - **Out of scope:** more than one owner, ownership transfer, a member leaving on their own, per-
   project human permissions, emailing invites, an organization switcher.
+
+## D-040 — Pin CI actions by commit SHA; fix transitive advisories with scoped overrides (2026-11-13, planner, from PatchHog findings)
+
+- **Actions:** every third-party `uses:` in `.github/workflows/**` is `owner/repo@<40-hex sha> # vX.Y.Z`.
+  A tag can be repointed by the action's owner; a SHA cannot (CWE-1357). Pin the release in use;
+  moving to a new major is a separate change. No Dependabot/Renovate yet (operator has not decided).
+- **Transitive advisories:** when the parent is already at its latest version, fix with an npm
+  `overrides` entry nested under that parent, never a global one (on 0.x a caret range would also
+  move unrelated consumers, e.g. tsx/vite's esbuild 0.28.x). Never `npm audit fix --force`; never
+  regenerate the lockfile wholesale.
+- First use: T24 (esbuild 0.18.20 under `@esbuild-kit/core-utils`, GHSA-67mh-4wv8-2f99; dev-only and
+  never loaded by drizzle-kit 0.31.11, which declares but does not import `@esbuild-kit/esm-loader`).
