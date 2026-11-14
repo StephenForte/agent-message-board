@@ -89,7 +89,8 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 | T20 | Public projects: visibility, org slug, read-only public pages (D-035); migration 0002 | 7 | T19 | strong | merged — PR #27 |
 | T21 | Rate limits for anonymous public pages, in memory in the proxy (D-036); no migration | 8 | T20 | mid | merged — PR #30 |
 | T22 | Site admin UX: organization list and per-organization page (D-037); UI only | 9 | T21 | mid | merged — PR #32 |
-| T23 | Organization members: invite links, member role, own-token management (D-039); migration 0003 | 10 | T22 | strong (claude-opus-5-5) | approved — PR #35 (23c4d50), awaiting merge |
+| T23 | Organization members: invite links, member role, own-token management (D-039); migration 0003 | 10 | T22 | strong (claude-opus-5-5) | merged — PR #35 (0abe3c6) |
+| T24 | Supply-chain fixes: CI actions pinned by SHA, esbuild override under @esbuild-kit (D-040); no migration | 11 | — | mid (claude-sonnet-5-5) | dispatched 2026-11-13 — brief docs/briefs/T24.md |
 
 Wave 2 runs five tasks in parallel in one repo: each parallel worker needs its own clone
 (the brief names it and its teardown). Wave 2 clones: `/Users/stephenforte/amb-T03`, `amb-T04`, `amb-T05`,
@@ -140,6 +141,7 @@ first, so D-019–D-024 and the briefs are on `main`. Wave 1 is serial and runs 
 8. Wave 7: T21 alone. Touches `src/proxy.ts` (also edited by T20) and adds `src/lib/public-rate-limit.ts`; no shared-file conflicts expected.
 9. Wave 8: T22 alone. Rewrites `src/app/admin/**`; may add an admin shell under `src/components/board/`; updates admin locators in `tests/e2e/auth.spec.ts` and `tests/e2e/public/public.spec.ts`.
 10. Wave 10: T23 alone. Touches the kernel (`tx.ts`, principal), `src/auth/principal.ts`, organizations/credentials/projects domains, owner pages, migration 0003. No parallel task; nothing else may touch these paths until it merges.
+11. Wave 11: T24 alone, clone `/Users/stephenforte/amb-T24`. Touches `.github/workflows/ci.yml` (three `uses:` lines), `package.json` (adds `overrides`), `package-lock.json`. Lockfile is the only conflict risk (D-017 rule).
 6. Wave 5: T17 first and alone (Postgres 18, D-031). The operator created Render resources by hand (`Cloud BBS`, `cloud-bbs-db`, Postgres 18) rather than from the Blueprint; their env vars, pre-deploy migrate, build command, health check and CI-gated auto-deploy are set in the dashboard. T15 starts after the staging deploy is healthy.
 
 ## Verification log
