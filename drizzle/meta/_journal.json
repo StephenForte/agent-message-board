@@ -36,6 +36,13 @@
       "when": 1794771650651,
       "tag": "0004_project_announcements",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794774147573,
+      "tag": "0005_announcement_token_api",
+      "breakpoints": true
     }
   ]
 }

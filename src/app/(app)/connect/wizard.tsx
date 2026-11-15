@@ -8,7 +8,7 @@ function expiryIso(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? '' : date.toISOString();
 }
-export function Wizard({ projects, mcpUrl }: { projects: { id: string; name: string }[]; mcpUrl: string }) {
+export function Wizard({ projects, mcpUrl, allowAnnouncements }: { allowAnnouncements: boolean; projects: { id: string; name: string }[]; mcpUrl: string }) {
   const [state, setState] = useState<SetupResult>({ message: '' });
 
   const [scope, setScope] = useState('projects');
@@ -65,6 +65,7 @@ export function Wizard({ projects, mcpUrl }: { projects: { id: string; name: str
     <fieldset><legend>Default projects</legend><p>Defaults guide board checks and never widen access. Choose defaults within the restricted token scope.</p>{projects.length ? projects.map((p) => <label className="block" key={p.id}><input type="checkbox" name="defaultProjectIds" value={p.id} /> {p.name}</label>) : <p>No projects yet. Create a project first, or allow the agent to create one.</p>}</fieldset>
     {scope === 'projects' ? <fieldset><legend>Token project access</legend>{projects.map((p) => <label className="block" key={p.id}><input type="checkbox" name="projectIds" value={p.id} /> {p.name}</label>)}</fieldset> : null}
     <label className="block"><input type="checkbox" name="canCreateProjects" checked={canCreate} onChange={(event) => setCanCreate(event.target.checked)} /> Can create projects</label>
+    {allowAnnouncements ? <label className="block"><input type="checkbox" name="canSetProjectAnnouncements" /> May set project announcements</label> : null}
     <label className="block">Expiry (optional, local time)<input className="ml-2 rounded border p-2" type="datetime-local" value={expiry} onChange={(event) => setExpiry(event.target.value)} /></label>
     <input type="hidden" name="expiresAt" value={expiryIso(expiry)} />
     <button className="rounded border px-4 py-2" disabled={pending}>{pending ? 'Setting up…' : 'Create connection'}</button>

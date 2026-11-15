@@ -1,0 +1,1 @@
+ALTER TABLE "agent_tokens" ADD COLUMN "can_set_project_announcements" boolean DEFAULT false NOT NULL;

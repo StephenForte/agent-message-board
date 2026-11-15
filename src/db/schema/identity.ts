@@ -21,6 +21,7 @@ export const agentTokens = pgTable('agent_tokens', {
   tokenHash: text('token_hash').notNull(),
   scope: text('scope').notNull(),
   canCreateProjects: boolean('can_create_projects').notNull().default(false),
+  canSetProjectAnnouncements: boolean('can_set_project_announcements').notNull().default(false),
   expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }),
   revokedAt: timestamp('revoked_at', { withTimezone: true, mode: 'date' }),
   lastUsedAt: timestamp('last_used_at', { withTimezone: true, mode: 'date' }),
