@@ -51,7 +51,7 @@ src/
     (app)/connect/          T12   setup wizard, diagnostics
     api/health/             T01
     api/mcp/                T11
-drizzle/                    T02 (0000); 0001 T18 (D-033); 0002 T20 (D-035); 0003 T23 (D-039); 0004 T26 (D-042); later numbers by planner only (D-002)
+drizzle/                    T02 (0000); 0001 T18 (D-033); 0002 T20 (D-035); 0003 T23 (D-039); 0004 T26 (D-042); 0005 T27 (D-043); later numbers by planner only (D-002)
 render.yaml, docs/ops/      T13
 docs/clients/               T12
 tests/{unit,integration,e2e}/security/, docs/capability-matrix.md   T14 (configs only run those three trees)
@@ -93,6 +93,7 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 | T24 | Supply-chain fixes: CI actions pinned by SHA, esbuild override under @esbuild-kit (D-040); no migration | 11 | — | mid (claude-sonnet-5-5) | merged — PR #37 (8088c09) |
 | T25 | minimatch override under typescript-estree (CVE-2026-118764, D-040); sharp LGPL accepted (D-041) | 11 | T24 | mid (claude-sonnet-5-5) | merged — PR #38 (b2a1bd6) |
 | T26 | Project announcements: schema, domain, check_board, project settings editor, board panel (D-042); migration 0004 | 12 | — | strong (claude-opus-5-5) | merged — PR #40 (e8b9c42) |
+| T27 | Token API to set the project announcement; project announcement on public pages (D-043); migration 0005 | 13 | — | strong (claude-opus-5-5) | planned 2026-11-15 |
 
 Wave 2 runs five tasks in parallel in one repo: each parallel worker needs its own clone
 (the brief names it and its teardown). Wave 2 clones: `/Users/stephenforte/amb-T03`, `amb-T04`, `amb-T05`,
@@ -127,6 +128,7 @@ first, so D-019–D-024 and the briefs are on `main`. Wave 1 is serial and runs 
 - **Backlog (operator, 2026-11-10)** — site-admin UX is clunky (sign-up, verify, shell `admin:grant`); improve later. Capability matrix still lacks rows citing T12's diagnostics tests (needs evidence for all six role columns).
 - **T23** — Security-critical: tenant membership. Membership re-read in `withOrgTx`; owner-only gates enforced inside the transaction, not only in pages; removing a member revokes their tokens in the same transaction. Migration 0003 (`org_members`, `member_invitations`, both RLS-exempt per D-039). Capability matrix gains a Member column.
 - **T26** — Tenant and grant boundary: a restricted token must never see an ungranted project's announcement (RLS is org-level only; the grant filter is the domain's). Trap: `announcement_revisions_version` is unique on (scope, org_id, version); left unchanged, a second project's first publish hits it and `insertFirst` maps it to a false `version_conflict`. `getAnnouncementsInTx` has no WHERE today and would start reading every project announcement body. check_board must add a fixed number of queries, not one per project.
+- **T27** — Security-critical: a write path reachable by token. Only a token carrying `can_set_project_announcements` writes; only the owner grants it; every path that strips `can_create_projects` strips it too. Slug lookup is inside the token's org and grant, and every miss is the same `404`. The public page renders the body through the existing inert renderer (hostile Markdown test on the public page). Consumer: RateNinja admin CLI (RateNinja D-032 / R1-26) builds against this contract in parallel.
 - **T16** — Not dispatchable to an agent: requires the operator's four clients on two
   machines. Planner writes the checklist; operator records versions/OS.
 
@@ -147,6 +149,7 @@ first, so D-019–D-024 and the briefs are on `main`. Wave 1 is serial and runs 
 11. Wave 11: T24 alone, clone `/Users/stephenforte/amb-T24`. Touches `.github/workflows/ci.yml` (three `uses:` lines), `package.json` (adds `overrides`), `package-lock.json`. Lockfile is the only conflict risk (D-017 rule).
     Then T25 alone (after T24), clone `/Users/stephenforte/amb-T25`: one more key in `package.json` `overrides`, `package-lock.json`.
 12. Wave 12: T26 alone, clone `/Users/stephenforte/amb-T26`, migration 0004. Touches the announcements and briefing domains, `src/db/schema/{announcements,policies}.ts`, the project board, settings and briefing pages, and `docs/capability-matrix.md`. No parallel task; nothing else may touch those paths until it merges.
+13. Wave 13: T27 alone, clone `/Users/stephenforte/amb-T27`, migration 0005. Touches credentials and announcements domains, `src/db/schema/identity.ts` (or wherever `agent_tokens` lives), the token issue form, a new `src/app/api/v1/projects/[projectSlug]/announcement/route.ts`, the public project page, and `docs/capability-matrix.md`. No parallel CloudBBS task.
 6. Wave 5: T17 first and alone (Postgres 18, D-031). The operator created Render resources by hand (`Cloud BBS`, `cloud-bbs-db`, Postgres 18) rather than from the Blueprint; their env vars, pre-deploy migrate, build command, health check and CI-gated auto-deploy are set in the dashboard. T15 starts after the staging deploy is healthy.
 
 ## Verification log
