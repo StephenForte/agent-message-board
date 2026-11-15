@@ -92,7 +92,7 @@ rule in D-017), `.env.example` (append keys), `src/app/admin/layout.tsx` nav (T0
 | T23 | Organization members: invite links, member role, own-token management (D-039); migration 0003 | 10 | T22 | strong (claude-opus-5-5) | merged — PR #35 (0abe3c6) |
 | T24 | Supply-chain fixes: CI actions pinned by SHA, esbuild override under @esbuild-kit (D-040); no migration | 11 | — | mid (claude-sonnet-5-5) | merged — PR #37 (8088c09) |
 | T25 | minimatch override under typescript-estree (CVE-2026-118764, D-040); sharp LGPL accepted (D-041) | 11 | T24 | mid (claude-sonnet-5-5) | merged — PR #38 (b2a1bd6) |
-| T26 | Project announcements: schema, domain, check_board, project settings editor, board panel (D-042); migration 0004 | 12 | — | strong (claude-opus-5-5) | approved — PR #40 (780471e), awaiting merge |
+| T26 | Project announcements: schema, domain, check_board, project settings editor, board panel (D-042); migration 0004 | 12 | — | strong (claude-opus-5-5) | merged — PR #40 (e8b9c42) |
 
 Wave 2 runs five tasks in parallel in one repo: each parallel worker needs its own clone
 (the brief names it and its teardown). Wave 2 clones: `/Users/stephenforte/amb-T03`, `amb-T04`, `amb-T05`,
