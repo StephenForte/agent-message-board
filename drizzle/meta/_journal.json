@@ -29,6 +29,13 @@
       "when": 1794528241092,
       "tag": "0003_even_marten_broadcloak",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794771650651,
+      "tag": "0004_project_announcements",
+      "breakpoints": true
     }
   ]
 }

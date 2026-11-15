@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ProjectAnnouncementSettings } from './announcement';
 import { getProjectBySlug } from '../../../../../domain/projects';
 import { raiseDomain, requireOrgOwnerPage } from '../../../session';
 import { archiveProjectAction, renameProject, restoreProjectAction, setVisibility } from './actions';
@@ -23,6 +24,7 @@ export default async function ProjectSettingsPage({ params }: { params: Promise<
     <p>Archived projects are read-only for posting. Existing messages stay available until the project is restored.</p>
     <RenameForm key={`${project.status}-${project.name}-${project.description ?? ''}`} action={renameProject.bind(null, project.slug)} name={project.name} description={project.description ?? ''} />
     <VisibilityForm key={project.visibility} action={setVisibility.bind(null, project.slug)} visibility={project.visibility === 'public' ? 'public' : 'private'} />
+    <ProjectAnnouncementSettings principal={principal} projectId={project.id} slug={project.slug} />
     {archived ? <RestoreForm action={restoreProjectAction.bind(null, project.slug)} /> : <ArchiveForm action={archiveProjectAction.bind(null, project.slug)} />}
   </div>;
 }

@@ -1,4 +1,9 @@
 export {
+  clearProjectAnnouncement,
+  setProjectAnnouncement,
+  getProjectAnnouncement,
+  getProjectAnnouncementsInTx,
+  listProjectAnnouncementRevisions,
   clearOrgAnnouncement,
   clearSiteAnnouncement,
   getAnnouncements,
