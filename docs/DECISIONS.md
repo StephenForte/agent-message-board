@@ -611,9 +611,15 @@ project's announcement with a token, simply, and on a public project everyone ca
   Clearing stays web-only.
 - **Who:** a token with the new flag `can_set_project_announcements` (default false). Only the
   org owner can grant it, when issuing or replacing a token; members never can (as with project
-  creation, D-039). The token must cover the project (org-wide, or a project grant). The flag is
-  cleared by every path that clears `can_create_projects` today. Org comes from the token (D-007);
-  the slug resolves only inside that org.
+  creation, D-039). The token must cover the project (org-wide, or a project grant). On every
+  request the write also requires the token's `created_by_user_id` to equal the org's current
+  `owner_user_id`, read in the same transaction; otherwise `403 capability_denied`. Org comes from
+  the token (D-007); the slug resolves only inside that org.
+  *Corrected 2026-11-15 (planner, from the T27 worker's stop):* this entry first said the flag is
+  "cleared by every path that clears `can_create_projects`". The only such path,
+  `updateMember` (src/domain/members/index.ts:160–168), touches member-issued tokens, which can
+  never carry the flag, so it was a no-op. The real risk is the owner changing; the creator
+  check covers it with no change to `src/domain/members`.
 - **Errors:** missing/revoked/expired token `401`; valid token without the flag `403
   capability_denied`; slug unknown, in another org, or not granted to the token `404` (no
   existence leak); bad body `400` with the D-042 validation codes; rate limit `429` via
