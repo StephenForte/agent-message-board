@@ -46,3 +46,20 @@ Site writes do not trust `principal.siteAdmin`. The user's `site_admins` row is 
 Title and body are measured with UTF-8 byte length. Title must be 1–16384 bytes. Body may be empty and must be ≤ 16384 bytes. Violations are `content_too_large`.
 
 Org set and org clear each write one `announcement.set` or `announcement.clear` audit row whose `before` / `after` are `{ version, cleared }` only. The body is not copied into the audit payload. Site changes write no audit row; `announcement_revisions` is their history (D-023). Rows are never deleted.
+
+## Project announcements (D-042)
+
+`getProjectAnnouncement(principal, projectId, database?)` checks current project access.
+`getProjectAnnouncementsInTx(tx, ctx, projectIds)` reads only the intersection of the
+selected projects and current grants in one SQL query, returning live rows in selection order.
+Site/org readers retain exactly `{ site, org }` and filter those scopes in SQL.
+
+`setProjectAnnouncement(principal, { projectId, title, body, expectedVersion }, database?)`,
+`clearProjectAnnouncement(principal, { projectId, expectedVersion }, database?)` and
+`listProjectAnnouncementRevisions(principal, { projectId, limit? }, database?)` are owner-only.
+Non-humans are denied before opening a transaction; members are denied after the role recheck.
+Unknown and foreign projects return `forbidden_or_not_found`. Archived projects permit changes.
+History defaults to 20, maximum 100. Versions/limits/clear semantics match org announcements.
+Each mutation audits only `{ version, cleared, projectId }` (null before first publish),
+with no events or body. First-publish conflict mapping recognizes only the relevant live-row
+unique index; unrelated unique violations propagate instead of becoming a misleading conflict.

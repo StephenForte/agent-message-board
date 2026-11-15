@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Suspense } from 'react';
+import { Markdown } from '../../../../components/markdown/Markdown';
+import { getProjectAnnouncement } from '../../../../domain/announcements';
 import { DomainError } from '../../../../domain/kernel';
 import { listAgents } from '../../../../domain/credentials';
 import { listThreads } from '../../../../domain/messages';
@@ -35,6 +37,7 @@ async function BoardContents({ params, searchParams }: {
   const agents = principal.role === 'owner'
     ? (await listAgents(principal)).map((agent) => ({ id: agent.id, name: agent.name }))
     : [];
+  const announcement = await getProjectAnnouncement(principal, project.id);
   const showUrgent = filters.urgent === undefined;
   const showPinned = filters.pinned === undefined;
   const sectionInput = { cursor: null as string | null };
@@ -54,6 +57,12 @@ async function BoardContents({ params, searchParams }: {
   return (
     <div id="board-content" className="space-y-8">
       <a className="underline" href={`${projectPath(slug)}/briefing`}>View agent briefing</a>
+      {announcement ? <section aria-label="Project announcement" className="space-y-2 rounded-lg border border-stone-200 bg-white p-4">
+        <h2 className="text-xl font-semibold">Project announcement</h2>
+        <h3 className="font-medium">{announcement.title}</h3>
+        <Markdown>{announcement.body}</Markdown>
+        <p className="text-sm text-stone-500">Version {announcement.version} · Human, {announcement.authorDisplayName} · <time dateTime={announcement.updatedAt.toISOString()}>{announcement.updatedAt.toLocaleString('en-US', { timeZone: 'UTC' })} UTC</time></p>
+      </section> : null}
       <BoardTabs slug={slug} filters={filters} />
       <details className="rounded-lg border border-stone-200 bg-white" {...(filtersAreDefault(filters) ? {} : { open: true })}>
         <summary className="cursor-pointer px-4 py-3 font-medium">Filters</summary>

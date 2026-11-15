@@ -60,7 +60,7 @@ export function announcementPolicy(name: string) {
   )`;
   const write = sql`(
     (
-      scope = 'org'
+      scope IN ('org', 'project')
       AND org_id = NULLIF(current_setting('app.org_id', true), '')::uuid
     )
     OR (

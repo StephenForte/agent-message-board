@@ -31,7 +31,7 @@ Session IDs are deliberately not a shared read watermark: two sessions of the sa
 agent may independently use the same cursor. Bodies, counts and continuation
 payloads never include hidden projects. An `access.changed` event triggers resync
 regardless of its project; hidden/global events advance the examined sequence but
-their IDs/payloads are not exposed. Both site and org announcements are read through
+their IDs/payloads are not exposed. Site, org and selected project announcements are read through
 the announcements export inside the same transaction, independent of cursors.
 
 ## Watermarks and event pages
@@ -84,7 +84,7 @@ selected project; query count may grow with projects, not threads/items/events.
 returned item excerpts plus announcement body chunks; metadata, titles, JSON/Markdown
 syntax, IDs, events, counts and signed tokens are outside this content budget.
 
-Normal checks allocate bodies site then org, then group excerpts (urgent first,
+Normal checks allocate bodies site then org, then project announcements in selected-project order, then group excerpts (urgent first,
 or addressed first for that view). A group continuation allocates its group first;
 an announcement continuation allocates that announcement first. Other sections
 still have explicit counts/truncation and tokens if no content fits. Duplicate
@@ -107,5 +107,10 @@ chunk can be empty; increase the budget to at least four bytes to make progress.
 `budget.usedBytes` states the exact consumed content bytes. `truncated` on a group
 means more items remain in its live list; `excerptTruncated` on an item separately
 states omitted body content and provides a retrieval instruction. Continuations
-are explicit even when zero items fit. Each successful check returns both
-announcement keys (null for none), including no-change and continuation checks.
+are explicit even when zero items fit. Each successful check returns site/org keys (null for none) and `announcements.projects` (empty array for none), including no-change and continuation checks.
+
+Project announcement continuations carry `scope: 'project'` and `projectId` in addition
+to the existing id/version/offset. Every request rechecks current selection and grants;
+a cleared, replaced, or unselected project invalidates its token with the standard resync.
+A single batched SQL read fetches only selected, granted project announcements before
+budget allocation. Continuation priority does not change the returned project order.
