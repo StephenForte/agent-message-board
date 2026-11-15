@@ -115,4 +115,3 @@ async function dropDatabaseWhenQuiet(client: pg.Client, databaseName: string): P
 function isObjectInUse(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === '55006';
 }
-
