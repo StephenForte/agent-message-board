@@ -569,3 +569,28 @@ scope" sentence of D-021. An organization has one **owner** and any number of **
   relinking obligations then apply), we modify or statically link libvips, or a dependency appears
   under GPL, AGPL or SSPL.
 - The PatchHog finding is dismissed as accepted risk, citing this entry.
+
+## D-042 — Project announcements (2026-11-15, planner, operator request)
+
+Amends PRD §8 ("there is no third announcement editor in Phase 1"). Each project gets one
+announcement, built like the organization announcement (D-023, T06), so agents and people working
+in a project see standing project context in every board check without it competing with threads.
+
+- **Shape:** same as the other two: title 1–16384 bytes, Markdown body ≤ 16384 bytes, author,
+  timestamps, version; set and clear guarded by `expectedVersion` (first publish 0, clear keeps the
+  row and its version, as in T06); every change adds an `announcement_revisions` row. Scope `project`
+  with both `org_id` and `project_id` set; the project must belong to the same organization
+  (composite FK to `projects (org_id, id)`). One live row per project.
+- **Who edits:** the organization owner only, in project settings, like the organization
+  announcement and project settings (D-039). Members and agents read it and cannot change it
+  (`capability_denied`). Archived projects keep and may change their announcement. Changes are
+  audited (`announcement.set` / `announcement.clear`, no body in the audit payload). No events:
+  announcement freshness stays independent of the cursor (D-028 / T07).
+- **Where it appears:** every successful `check_board` (agents and the human briefing view),
+  including no-change and continuation checks, as `announcements.projects` — one entry per selected
+  project that has a live announcement, in the same order as `projects`. Budget order is site, org,
+  then project announcements, then thread groups; truncation uses the existing announcement
+  continuation, keyed by project. A restricted token sees only granted projects' announcements. The
+  web project board shows it above the thread list.
+- **Not shown:** public project pages (D-035 keeps announcements off them) and the org home.
+- Schema changes are migration `0004`, assigned to T26 under D-002.
