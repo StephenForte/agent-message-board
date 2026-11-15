@@ -32,6 +32,7 @@ export async function createTokenAction(_state: SecretState, data: FormData): Pr
       scope,
       ...(scope === 'projects' ? { projectIds: data.getAll('projectIds').map(String) } : {}),
       canCreateProjects: data.get('canCreateProjects') === 'true',
+      canSetProjectAnnouncements: data.get('canSetProjectAnnouncements') === 'true',
       expiresAt: expiresAt ? expiresAt : null,
     });
     // The secret exists only in this result. Do not redirect, revalidate, log, or store it.
@@ -45,7 +46,7 @@ export async function replaceTokenAction(_state: SecretState, data: FormData): P
   const principal = await requireOwner();
   const tokenId = text(data, 'tokenId');
   try {
-    const result = await replaceToken(principal, tokenId);
+    const result = await replaceToken(principal, tokenId, { canSetProjectAnnouncements: data.get('canSetProjectAnnouncements') === 'true' });
     // The secret exists only in this result. Do not redirect, revalidate, log, or store it.
     return {
       message: '',

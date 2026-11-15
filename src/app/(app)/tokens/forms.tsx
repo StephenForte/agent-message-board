@@ -15,6 +15,7 @@ export type TokenView = {
   projectIds: string[];
   projectNames: string[];
   canCreateProjects: boolean;
+  canSetProjectAnnouncements: boolean;
   expiresAt: string | null;
   revokedAt: string | null;
   lastUsedAt: string | null;
@@ -83,9 +84,10 @@ function ProjectChoices({ projects, selected, onToggle }: {
   </ul>;
 }
 
-function CreateTokenFields({ projects, allowCreateProjects, action, pending }: {
+function CreateTokenFields({ projects, allowCreateProjects, allowAnnouncements, action, pending }: {
   projects: ProjectChoice[];
   allowCreateProjects: boolean;
+  allowAnnouncements: boolean;
   action: (data: FormData) => void | Promise<void>;
   pending: boolean;
 }) {
@@ -131,12 +133,13 @@ function CreateTokenFields({ projects, allowCreateProjects, action, pending }: {
       Can create projects
     </label>
     {!allowCreateProjects ? <p className="text-sm text-stone-600">Your membership does not allow project creation on tokens.</p> : null}
+    {allowAnnouncements ? <label className="flex items-center gap-2"><input type="checkbox" name="canSetProjectAnnouncements" value="true" /> May set project announcements</label> : null}
     <ExpiryField />
     <button disabled={pending} className={primaryButton}>{pending ? 'Creating token…' : 'Create token'}</button>
   </form>;
 }
 
-export function CreateTokenForm({ projects, allowCreateProjects }: { projects: ProjectChoice[]; allowCreateProjects: boolean }) {
+export function CreateTokenForm({ projects, allowCreateProjects, allowAnnouncements }: { projects: ProjectChoice[]; allowCreateProjects: boolean; allowAnnouncements: boolean }) {
   const [generation, setGeneration] = useState(0);
   const [state, action, pending] = useActionState(async (previous: SecretState, data: FormData) => {
     const result = await createTokenAction(previous, data);
@@ -144,7 +147,7 @@ export function CreateTokenForm({ projects, allowCreateProjects }: { projects: P
     return result;
   }, blankSecret);
   return <div className="space-y-4">
-    <CreateTokenFields key={generation} projects={projects} allowCreateProjects={allowCreateProjects} action={action} pending={pending} />
+    <CreateTokenFields key={generation} projects={projects} allowCreateProjects={allowCreateProjects} allowAnnouncements={allowAnnouncements} action={action} pending={pending} />
     {state.message ? <p role="status">{state.message}</p> : null}
     {state.secret && state.prefix ? <SecretReveal secret={state.secret} prefix={state.prefix} /> : null}
   </div>;
@@ -169,13 +172,14 @@ export function RevokeControl({ tokenId, label, prefix, offer }: { tokenId: stri
   </form>;
 }
 
-export function ReplaceControl({ token }: { token: TokenView }) {
+export function ReplaceControl({ token, allowAnnouncements }: { token: TokenView; allowAnnouncements: boolean }) {
   const [state, action, pending] = useActionState(replaceTokenAction, blankSecret);
   return <div className="space-y-3">
     <form action={action}>
       <input type="hidden" name="tokenId" value={token.id} />
       <input type="hidden" name="label" value={token.label} />
       <input type="hidden" name="prefix" value={token.prefix} />
+      {allowAnnouncements ? <label className="flex items-center gap-2"><input type="checkbox" name="canSetProjectAnnouncements" value="true" defaultChecked={token.canSetProjectAnnouncements} /> May set project announcements</label> : null}
       <button disabled={pending} className={secondaryButton}>{pending ? 'Replacing…' : 'Replace'}</button>
     </form>
     {state.message ? <p role="status">{state.message}</p> : null}
@@ -217,7 +221,7 @@ export function GrantsControl({ token, projects }: { token: TokenView; projects:
   </form>;
 }
 
-export function TokenList({ tokens, projects }: { tokens: TokenView[]; projects: ProjectChoice[] }) {
+export function TokenList({ tokens, projects, allowAnnouncements }: { tokens: TokenView[]; projects: ProjectChoice[]; allowAnnouncements: boolean }) {
   if (tokens.length === 0) return <p>No tokens yet. Create one to connect an agent.</p>;
   return <ul className="space-y-8">
     {tokens.map((token) => <li key={token.id} className="space-y-3 rounded border p-4">
@@ -227,13 +231,14 @@ export function TokenList({ tokens, projects }: { tokens: TokenView[]; projects:
         <dt>Scope</dt><dd>{token.scope === 'org' ? 'Broad' : 'Restricted'}</dd>
         <dt>Projects</dt><dd>{token.scope === 'org' ? 'All current and future projects' : token.projectNames.join(', ') || 'None'}</dd>
         <dt>Can create projects</dt><dd>{token.canCreateProjects ? 'Yes' : 'No'}</dd>
+        <dt>May set project announcements</dt><dd>{token.canSetProjectAnnouncements ? 'Enabled' : 'Disabled'}</dd>
         <dt>Expiry</dt><dd>{formatWhen(token.expiresAt, 'No expiry')}</dd>
         <dt>Last used</dt><dd>{formatWhen(token.lastUsedAt, 'Never')}</dd>
         <dt>Revoked</dt><dd>{token.revokedAt ? `Revoked ${formatWhen(token.revokedAt, '')}` : 'Not revoked'}</dd>
       </dl>
       {token.revokedAt ? null : <div className="flex flex-wrap gap-6">
         <RevokeControl tokenId={token.id} label={token.label} prefix={token.prefix} />
-        <ReplaceControl token={token} />
+        <ReplaceControl token={token} allowAnnouncements={allowAnnouncements} />
       </div>}
       {!token.revokedAt && token.scope === 'projects' ? <GrantsControl token={token} projects={projects} /> : null}
     </li>)}

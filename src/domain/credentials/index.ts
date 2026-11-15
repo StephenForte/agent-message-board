@@ -21,7 +21,7 @@ function tokenOwnedByActor(ctx: TxContext, createdByUserId: string): boolean {
 
 const tokenColumns = {
   id: agentTokens.id, label: agentTokens.label, prefix: agentTokens.prefix, scope: agentTokens.scope,
-  canCreateProjects: agentTokens.canCreateProjects, expiresAt: agentTokens.expiresAt, revokedAt: agentTokens.revokedAt,
+  canCreateProjects: agentTokens.canCreateProjects, canSetProjectAnnouncements: agentTokens.canSetProjectAnnouncements, expiresAt: agentTokens.expiresAt, revokedAt: agentTokens.revokedAt,
   lastUsedAt: agentTokens.lastUsedAt, createdAt: agentTokens.createdAt, updatedAt: agentTokens.updatedAt,
 };
 function agentOnly(principal: Principal, resolved = false): asserts principal is AgentPrincipal {
@@ -50,7 +50,7 @@ export async function authenticateBearer(authorizationHeader: string | null | un
     return { ...principal, projectIds: ctx.projectIds, canCreateProjects: ctx.canCreateProjects };
   });
 }
-export type CreateTokenInput = { label: string; scope: 'org' | 'projects'; projectIds?: string[]; canCreateProjects?: boolean; expiresAt?: string | Date | null };
+export type CreateTokenInput = { label: string; scope: 'org' | 'projects'; projectIds?: string[]; canCreateProjects?: boolean; canSetProjectAnnouncements?: boolean; expiresAt?: string | Date | null };
 async function validateProjects(tx: DbTx, ctx: TxContext, projectIds: readonly string[]) {
   for (const id of projectIds) { requireId(id); await assertProjectAccess(tx, ctx.principal, id, 'read'); }
 }
@@ -63,6 +63,9 @@ async function issueToken(tx: DbTx, ctx: TxContext, input: CreateTokenInput) {
   // may still issue org-wide tokens, but those default to canCreateProjects false.
   const canCreate = input.canCreateProjects ?? (ctx.canCreateProjects && input.scope === 'org');
   if (canCreate && !ctx.canCreateProjects) throw new DomainError('capability_denied');
+  if (input.canSetProjectAnnouncements !== undefined && typeof input.canSetProjectAnnouncements !== 'boolean') throw new DomainError('validation_failed', { field: 'canSetProjectAnnouncements' });
+  const canSetProjectAnnouncements = input.canSetProjectAnnouncements ?? false;
+  if (canSetProjectAnnouncements) requireTxOwner(ctx);
   const ids = [...new Set(input.projectIds ?? [])];
   if (input.scope === 'org' && ids.length) throw new DomainError('validation_failed', { field: 'projectIds' });
   await validateProjects(tx, ctx, ids);
@@ -74,13 +77,13 @@ async function issueToken(tx: DbTx, ctx: TxContext, input: CreateTokenInput) {
     const prefix = randomBase62(8);
     const secret = `amb_${prefix}_${randomBase62(40)}`;
     const [row] = await tx.insert(agentTokens).values({ id: newId(), orgId: ctx.orgId, label: input.label, prefix,
-      tokenHash: hashSecret(secret), scope: input.scope, canCreateProjects: canCreate,
+      tokenHash: hashSecret(secret), scope: input.scope, canCreateProjects: canCreate, canSetProjectAnnouncements,
       expiresAt, createdByUserId,
     }).onConflictDoNothing({ target: agentTokens.prefix }).returning(tokenColumns);
     if (!row) continue;
     if (ids.length) await tx.insert(tokenProjectGrants).values(ids.map((projectId) => ({ orgId: ctx.orgId, tokenId: row.id, projectId, source: 'owner' })));
     await accessEvent(tx, ctx, 'credential', row.id);
-    await audit(tx, ctx, 'credential.create', 'credential', row.id, null, { label: row.label, prefix: row.prefix, scope: row.scope, projectIds: ids, canCreateProjects: row.canCreateProjects });
+    await audit(tx, ctx, 'credential.create', 'credential', row.id, null, { label: row.label, prefix: row.prefix, scope: row.scope, projectIds: ids, canSetProjectAnnouncements: row.canSetProjectAnnouncements, canCreateProjects: row.canCreateProjects });
     return { token: serializeToken(row, ids), secret };
   }
 }
@@ -111,7 +114,7 @@ async function lockedToken(tx: DbTx, ctx: TxContext, id: string) {
   if (!row || !tokenOwnedByActor(ctx, row.createdByUserId)) throw new DomainError('forbidden_or_not_found');
   return {
     id: row.id, label: row.label, prefix: row.prefix, scope: row.scope,
-    canCreateProjects: row.canCreateProjects, expiresAt: row.expiresAt, revokedAt: row.revokedAt,
+    canSetProjectAnnouncements: row.canSetProjectAnnouncements, canCreateProjects: row.canCreateProjects, expiresAt: row.expiresAt, revokedAt: row.revokedAt,
     lastUsedAt: row.lastUsedAt, createdAt: row.createdAt, updatedAt: row.updatedAt,
   };
 }
@@ -126,12 +129,12 @@ export function revokeToken(principal: Principal, tokenId: string) {
     return { id: tokenId, revokedAt: revokedAt.toISOString() };
   });
 }
-export function replaceToken(principal: Principal, tokenId: string) {
+export function replaceToken(principal: Principal, tokenId: string, input: { canSetProjectAnnouncements?: boolean } = {}) {
   requireOwner(principal);
   return withOrgTx(principal, async (tx, ctx) => {
     const row = await lockedToken(tx, ctx, tokenId);
     const grants = await tx.select().from(tokenProjectGrants).where(eq(tokenProjectGrants.tokenId, tokenId));
-    const result = await issueToken(tx, ctx, { label: row.label, scope: row.scope as 'org' | 'projects', projectIds: grants.map((g) => g.projectId), canCreateProjects: row.canCreateProjects, expiresAt: row.expiresAt });
+    const result = await issueToken(tx, ctx, { label: row.label, scope: row.scope as 'org' | 'projects', projectIds: grants.map((g) => g.projectId), canSetProjectAnnouncements: input.canSetProjectAnnouncements ?? row.canSetProjectAnnouncements, canCreateProjects: row.canCreateProjects, expiresAt: row.expiresAt });
     await audit(tx, ctx, 'credential.replace', 'credential', tokenId, null, { replacementId: result.token.id });
     return result;
   });

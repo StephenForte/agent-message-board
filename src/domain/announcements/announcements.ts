@@ -3,14 +3,17 @@ import type { AppDatabase, DbTx } from '../../db/client';
 import { getDb } from '../../db/client';
 import { user } from '../../db/schema/auth';
 import { announcementRevisions, announcements } from '../../db/schema/announcements';
+import { agentTokens } from '../../db/schema/identity';
+import { organizations } from '../../db/schema/org';
+import { projects, tokenProjectGrants } from '../../db/schema/projects';
 import { siteAdmins } from '../../db/schema/site-admins';
 import { writeAudit } from '../kernel/audit';
 import { DomainError, versionConflict } from '../kernel/errors';
 import { assertProjectAccess, isUuid } from '../kernel';
 import { newId } from '../kernel/ids';
-import type { HumanPrincipal, Principal } from '../kernel/principal';
+import type { AgentPrincipal, HumanPrincipal, Principal } from '../kernel/principal';
 import type { TxContext } from '../kernel/tx';
-import { withOrgTx, withSiteAdminTx } from '../kernel/tx';
+import { withOrgTx, withSiteAdminTx, withPublicReadTx } from '../kernel/tx';
 import {
   assertAnnouncementContent,
   assertAnnouncementScope,
@@ -264,17 +267,17 @@ type Mutation = {
   orgId: string | null;
   projectId?: string;
   authorUserId: string;
-  expectedVersion: number;
+  expectedVersion?: number;
 } & ({ mode: 'set'; title: string; body: string } | { mode: 'clear' });
 
 async function applyMutation(tx: DbTx, mutation: Mutation): Promise<Applied> {
   const current = await lockAnnouncement(tx, mutation.scope, mutation.orgId, mutation.projectId);
   if (!current) {
-    if (mutation.mode === 'clear' || mutation.expectedVersion !== 0) throw versionConflict(0, null);
+    if (mutation.mode === 'clear' || mutation.expectedVersion !== undefined && mutation.expectedVersion !== 0) throw versionConflict(0, null);
     return insertFirst(tx, mutation);
   }
   const state = announcementState(current);
-  if (current.version !== mutation.expectedVersion) throw versionConflict(current.version, state);
+  if (mutation.expectedVersion !== undefined && current.version !== mutation.expectedVersion) throw versionConflict(current.version, state);
 
   const now = new Date();
   const nextVersion = current.version + 1;
@@ -343,6 +346,8 @@ async function insertFirst(tx: DbTx, mutation: Extract<Mutation, { mode: 'set' }
   } catch (error) {
     const expectedConstraint = `announcements_one_${mutation.scope}`;
     if (!isUniqueViolation(error) || postgresConstraint(error) !== expectedConstraint) throw mapLengthCheck(error);
+    // Token writes are last-write-wins, including a racing first web publish.
+    if (mutation.expectedVersion === undefined) return applyMutation(tx, mutation);
     const winner = await lockAnnouncement(tx, mutation.scope, mutation.orgId, mutation.projectId);
     throw versionConflict(winner?.version ?? 0, winner ? announcementState(winner) : null);
   }
@@ -605,4 +610,63 @@ async function mutateProject(human: HumanPrincipal, input: { projectId: string; 
 
 function assertProjectId(id: string): void {
   if (!isUuid(id)) throw new DomainError('forbidden_or_not_found');
+}
+
+/** D-043: fresh token capability and current ownership, inside the write transaction. */
+export async function setProjectAnnouncementByToken(principal: AgentPrincipal, projectSlug: string,
+  input: { title: string; body: string }, database: AppDatabase = getDb()) {
+  if (principal.kind !== 'agent') throw new DomainError('capability_denied');
+  return withOrgTx(principal, async (tx, ctx) => {
+    // Hold ownership and credential stable until the announcement and audit commit.
+    const [org] = await tx.select({ ownerUserId: organizations.ownerUserId, status: organizations.status }).from(organizations)
+      .where(eq(organizations.id, ctx.orgId)).for('share');
+    if (org?.status !== 'active') throw new DomainError('org_suspended');
+    const [token] = await tx.select({
+      createdByUserId: agentTokens.createdByUserId, canSetProjectAnnouncements: agentTokens.canSetProjectAnnouncements,
+      scope: agentTokens.scope, revokedAt: agentTokens.revokedAt, expiresAt: agentTokens.expiresAt,
+    }).from(agentTokens).where(and(
+      eq(agentTokens.id, principal.tokenId), eq(agentTokens.orgId, ctx.orgId),
+    )).for('share');
+    if (!token || token.revokedAt || (token.expiresAt && token.expiresAt.getTime() <= Date.now())) throw new DomainError('unauthenticated');
+    if (!token.canSetProjectAnnouncements || token.createdByUserId !== org?.ownerUserId) throw new DomainError('capability_denied');
+    if (!/^[a-z0-9][a-z0-9-]{0,62}$/.test(projectSlug)) throw new DomainError('forbidden_or_not_found');
+    // Grant changes lock the token too. Read grants after acquiring its lock,
+    // so a change committed while waiting cannot leave the earlier ctx stale.
+    const grants = token.scope === 'org' ? null : await tx.select({ projectId: tokenProjectGrants.projectId }).from(tokenProjectGrants)
+      .where(and(eq(tokenProjectGrants.orgId, ctx.orgId), eq(tokenProjectGrants.tokenId, principal.tokenId)));
+    const [project] = await tx.select({ id: projects.id }).from(projects).where(and(
+      eq(projects.orgId, ctx.orgId), eq(projects.slug, projectSlug),
+      grants === null ? undefined : inArray(projects.id, grants.map(g => g.projectId)),
+    )).for('update');
+    if (!project) throw new DomainError('forbidden_or_not_found');
+    const content = assertAnnouncementContent(input.title, input.body);
+    const applied = await applyMutation(tx, { ...content, scope: 'project', orgId: ctx.orgId,
+      projectId: project.id, authorUserId: token.createdByUserId, mode: 'set' });
+    await writeAudit(tx, ctx, {
+      action: 'announcement.set', entityType: 'announcement', entityId: applied.id,
+      before: applied.previous ? { ...applied.previous, projectId: project.id } : null,
+      after: { version: applied.version, cleared: false, projectId: project.id },
+    });
+    const [saved] = await tx.select({ updatedAt: announcements.updatedAt }).from(announcements).where(eq(announcements.id, applied.id));
+    return { projectSlug, version: applied.version, updatedAt: saved!.updatedAt.toISOString() };
+  }, database);
+}
+
+/** Anonymous project-only reader, gated before reading any announcement body. */
+export async function getPublicProjectAnnouncement(orgSlug: string, projectSlug: string, database: AppDatabase = getDb()): Promise<Announcement | null> {
+  if (!/^[a-z0-9][a-z0-9-]{1,39}$/.test(orgSlug)) throw new DomainError('forbidden_or_not_found');
+  const [org] = await database.select({ id: organizations.id }).from(organizations)
+    .where(and(eq(organizations.slug, orgSlug), eq(organizations.status, 'active')));
+  if (!org) throw new DomainError('forbidden_or_not_found');
+  return withPublicReadTx(org.id, projectSlug, async (tx, project) => {
+    const [row] = await tx.select({
+      id: announcements.id, scope: announcements.scope, orgId: announcements.orgId,
+      title: announcements.title, body: announcements.body, version: announcements.version,
+      clearedAt: announcements.clearedAt, updatedAt: announcements.updatedAt, authorDisplayName: user.name,
+    }).from(announcements).innerJoin(user, eq(user.id, announcements.authorUserId)).where(and(
+      eq(announcements.scope, 'project'), eq(announcements.orgId, org.id),
+      eq(announcements.projectId, project.id), isNull(announcements.clearedAt),
+    ));
+    return row ? toAnnouncement(row) : null;
+  }, database);
 }

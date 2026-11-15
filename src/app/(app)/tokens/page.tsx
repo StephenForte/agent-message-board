@@ -23,13 +23,15 @@ export default async function TokensPage() {
   let catalog: ProjectChoice[] = [];
   let views: TokenView[] = [];
   let allowCreateProjects = false;
+  let allowAnnouncements = false;
   try {
     const [tokens, named, createFlag] = await Promise.all([
       listTokens(principal),
       listProjects(principal, { includeArchived: true }),
-      withOrgTx(principal, async (_tx, ctx) => ctx.canCreateProjects),
+      withOrgTx(principal, async (_tx, ctx) => ({ create: ctx.canCreateProjects, announcements: ctx.role === 'owner' })),
     ]);
-    allowCreateProjects = createFlag;
+    allowCreateProjects = createFlag.create;
+    allowAnnouncements = createFlag.announcements;
     const names = new Map(named.map((project) => [project.id, project.name]));
     catalog = named.map((project) => ({ id: project.id, name: project.name, archived: project.status === 'archived' }));
     projects = catalog.filter((project) => !project.archived);
@@ -41,6 +43,7 @@ export default async function TokensPage() {
       projectIds: token.projectIds,
       projectNames: token.projectIds.map((id) => names.get(id) ?? 'Unavailable project'),
       canCreateProjects: token.canCreateProjects,
+      canSetProjectAnnouncements: token.canSetProjectAnnouncements,
       expiresAt: token.expiresAt,
       revokedAt: token.revokedAt,
       lastUsedAt: token.lastUsedAt,
@@ -55,11 +58,11 @@ export default async function TokensPage() {
   return <PageShell title="Tokens">
     <section aria-label="Create a token" className="space-y-4">
       <h2 className="text-xl font-semibold">Create a token</h2>
-      <CreateTokenForm projects={projects} allowCreateProjects={allowCreateProjects} />
+      <CreateTokenForm projects={projects} allowCreateProjects={allowCreateProjects} allowAnnouncements={allowAnnouncements} />
     </section>
     <section aria-label="Token list" className="space-y-4">
       <h2 className="text-xl font-semibold">Your tokens</h2>
-      <TokenList tokens={views} projects={catalog} />
+      <TokenList tokens={views} projects={catalog} allowAnnouncements={allowAnnouncements} />
     </section>
   </PageShell>;
 }

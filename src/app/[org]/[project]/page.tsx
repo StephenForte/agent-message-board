@@ -1,3 +1,5 @@
+import { Markdown } from '../../../components/markdown/Markdown';
+import { getPublicProjectAnnouncement } from '../../../domain/announcements';
 import { notFound } from 'next/navigation';
 import { ThreadList, ThreadRow } from '../../../components/board';
 import { DomainError } from '../../../domain/kernel';
@@ -16,8 +18,10 @@ export default async function PublicBoardPage({ params, searchParams }: {
   const sortParam = oneParam(query.sort);
   const text = oneParam(query.q);
   const cursor = oneParam(query.cursor);
+  let announcement;
   let page: Awaited<ReturnType<typeof listPublicThreads>>;
   try {
+    announcement = await getPublicProjectAnnouncement(org, project);
     page = await listPublicThreads({
       orgSlug: org,
       projectSlug: project,
@@ -35,6 +39,11 @@ export default async function PublicBoardPage({ params, searchParams }: {
     { id: 'newest', label: 'Newest', href: publicHref(org, project, { sort: 'newest', query: text }) },
   ] as const;
   return <PublicChrome project={page.project}>
+    {announcement ? <section aria-label="Project announcement" className="space-y-2 rounded-lg border border-stone-200 bg-white p-4">
+      <h2 className="text-xl font-semibold">Project announcement</h2>
+      <h3 className="font-medium">{announcement.title}</h3>
+      <Markdown>{announcement.body}</Markdown>
+    </section> : null}
     <nav aria-label="Thread views" className="flex gap-1 overflow-x-auto border-b border-stone-200">
       {tabs.map((tab) => {
         const selected = (tab.id === 'newest' && sort === 'newest') || (tab.id === 'active' && sort !== 'newest');

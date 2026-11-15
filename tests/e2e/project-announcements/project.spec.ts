@@ -52,7 +52,7 @@ test('owner saves project announcement, stale save keeps draft, hostile Markdown
   await expect(page.getByRole('region', { name: 'Project announcement', exact: true })).toHaveCount(0);
 });
 
-test('member reads project panel and gets 404 on settings; public pages and org home omit project announcement', async ({ page, browser }) => {
+test('member reads project panel and gets 404 on settings; public page shows project announcement and org home omits it', async ({ page, browser }) => {
   const owner = await seedOwner();
   const project = await seedProject(owner, 'Member announcements');
   await setProjectAnnouncement(owner.principal(), { projectId: project.id, title: 'Members can read', body: 'Private project announcement body', expectedVersion: 0 });
@@ -78,7 +78,7 @@ test('member reads project panel and gets 404 on settings; public pages and org 
     const visitor = await anonymous.newPage();
     await visitor.goto(`/${orgSlug}/${project.slug}`);
     await expect(visitor.getByRole('heading', { name: project.name })).toBeVisible();
-    await expect(visitor.getByText('Private project announcement body')).toHaveCount(0);
+    await expect(visitor.getByRole('region', { name: 'Project announcement', exact: true })).toContainText('Private project announcement body');
     expect((await visitor.goto(`/projects/${project.slug}/settings`))?.url()).toContain('/sign-in');
   } finally { await anonymous.close(); }
 });

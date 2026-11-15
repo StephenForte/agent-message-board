@@ -5,7 +5,7 @@ import { rateLimited, withOrgTx, type AgentPrincipal } from '../kernel';
 export const READ_LIMIT = 120;
 export const WRITE_LIMIT = 30;
 export const CREATE_PROJECT_LIMIT = 5;
-export const RATE_LIMITS = { read: READ_LIMIT, write: WRITE_LIMIT, create_project: CREATE_PROJECT_LIMIT } as const;
+export const RATE_LIMITS = { read: READ_LIMIT, write: WRITE_LIMIT, create_project: CREATE_PROJECT_LIMIT, set_project_announcement: 30 } as const;
 export type RateLimitBucket = keyof typeof RATE_LIMITS;
 
 /** The database clock defines windows consistently across application instances. */

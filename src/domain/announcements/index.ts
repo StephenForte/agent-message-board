@@ -1,4 +1,6 @@
 export {
+  setProjectAnnouncementByToken,
+  getPublicProjectAnnouncement,
   clearProjectAnnouncement,
   setProjectAnnouncement,
   getProjectAnnouncement,
