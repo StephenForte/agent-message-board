@@ -9,7 +9,7 @@ export const DEFAULT_REVISION_LIMIT = 20;
 /** PRD §10 maximum page size. */
 export const MAX_REVISION_LIMIT = 100;
 
-export type AnnouncementScope = 'site' | 'org';
+export type AnnouncementScope = 'site' | 'org' | 'project';
 
 /**
  * Title is 1–16384 bytes and body is 0–16384 bytes. Both out-of-range cases
@@ -35,7 +35,7 @@ export function assertExpectedVersion(value: unknown): number {
   return value;
 }
 
-export function assertAnnouncementScope(value: unknown): AnnouncementScope {
+export function assertAnnouncementScope(value: unknown): 'site' | 'org' {
   if (value !== 'site' && value !== 'org') throw new DomainError('validation_failed', { field: 'scope' });
   return value;
 }

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { AppDatabase, DbTx } from '../../db/client';
 import { agents } from '../../db/schema/identity';
 import { messages, messageRecipients } from '../../db/schema/messages';
-import { getAnnouncementsInTx, type Announcement } from '../announcements';
+import { getAnnouncementsInTx, getProjectAnnouncementsInTx, type Announcement } from '../announcements';
 import { resolveTargetProjectsInTx } from '../credentials';
 import { currentWatermark, DomainError, invalidCursor, readEventsAfter, withOrgTx, type Principal, type TxContext } from '../kernel';
 import { listThreadsInTx, type ListThreadsInput } from '../messages';
@@ -25,7 +25,7 @@ export type CheckBoardInput = z.input<typeof schema>;
 type Preview = Awaited<ReturnType<typeof listThreadsInTx>>['items'][number];
 type Position = { cursor?: string; skip: number };
 type GroupContinuation = { seq: number; type: 'group'; group: GroupName; positions: Position[] };
-type AnnouncementContinuation = { seq: number; type: 'announcement'; scope: 'site' | 'org'; id: string; version: number; offset: number };
+type AnnouncementContinuation = { seq: number; type: 'announcement'; scope: 'site' | 'org' | 'project'; projectId?: string; id: string; version: number; offset: number };
 type Continuation = GroupContinuation | AnnouncementContinuation;
 export type BoardItem = Omit<Preview, 'matches' | 'matchesTruncated'> & {
   threadId: string; sourceMessageId: string; project: { id: string; slug: string; name: string };
@@ -36,7 +36,7 @@ export type BoardAnnouncement = Omit<Announcement, 'updatedAt'> & { updatedAt: s
 export type BoardResult = {
   identity: { kind: 'agent'; agentId: string; name: string; sessionId: string } | { kind: 'human'; userId: string };
   projects: Array<{ id: string; slug: string; name: string }>; serverTime: string; view: 'all' | 'urgent' | 'addressed';
-  announcements: { site: BoardAnnouncement | null; org: BoardAnnouncement | null };
+  announcements: { site: BoardAnnouncement | null; org: BoardAnnouncement | null; projects: Array<BoardAnnouncement & { projectId: string }> };
   groups: Record<GroupName, BoardGroup>; items: BoardItem[];
   events: Array<Omit<Awaited<ReturnType<typeof readEventsAfter>>[number], 'createdAt'> & { createdAt: string }>;
   nextCursor: string; hasMore: boolean; resync: string | null;
@@ -48,9 +48,10 @@ function parseContinuation(token: string | undefined, binding: Binding): Continu
   const position = z.object({ cursor: z.string().max(8192).optional(), skip: z.number().int().min(0).max(100) }).strict();
   const parsed = z.discriminatedUnion('type', [
     z.object({ seq: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER), type: z.literal('group'), group: z.enum(groupNames), positions: z.array(position).min(1).max(3) }),
-    z.object({ seq: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER), type: z.literal('announcement'), scope: z.enum(['site', 'org']), id: z.uuid(), version: z.number().int().min(1), offset: z.number().int().min(0) }),
+    z.object({ seq: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER), type: z.literal('announcement'), scope: z.enum(['site', 'org', 'project']), projectId: z.uuid().optional(), id: z.uuid(), version: z.number().int().min(1), offset: z.number().int().min(0) }),
   ]).safeParse(value);
   if (!parsed.success) throw invalidCursor(RESYNC);
+  if (parsed.data.type === 'announcement' && parsed.data.scope === 'project' && !parsed.data.projectId) throw invalidCursor(RESYNC);
   return parsed.data;
 }
 /** A prefix measured in UTF-8 bytes, never splitting a Unicode code point. */
@@ -113,6 +114,9 @@ export async function checkBoardInTx(tx: DbTx, ctx: TxContext, input: CheckBoard
     identity = { kind: 'agent', agentId: p.agentId!, name: agent.name, sessionId: p.sessionId! };
   } else identity = { kind: 'human', userId: p.userId };
   const announcements = await getAnnouncementsInTx(tx, freshCtx);
+  const projectAnnouncements = await getProjectAnnouncementsInTx(tx, freshCtx, projectIds);
+  if (continuation?.type === 'announcement' && continuation.scope === 'project'
+    && (!projectIds.includes(continuation.projectId!) || !projectAnnouncements.some((row) => row.projectId === continuation.projectId))) throw invalidCursor(RESYNC);
   const filters: Record<GroupName, Array<Partial<ListThreadsInput>>> = {
     urgent: [{ urgent: true }], pinned: [{ pinned: true }],
     addressed: p.kind === 'agent' ? [{ recipientAgentId: p.agentId! }] : [],
@@ -141,13 +145,16 @@ export async function checkBoardInTx(tx: DbTx, ctx: TxContext, input: CheckBoard
   const items = new Map<string, BoardItem>();
   const groups = {} as Record<GroupName, BoardGroup>;
   const outputAnnouncements = {} as BoardResult['announcements'];
-  function announcement(scope: 'site' | 'org') {
-    const row = announcements[scope];
+  const renderedProjects = new Map<string, BoardAnnouncement & { projectId: string }>();
+  function announcement(scope: 'site' | 'org' | 'project', projectId?: string) {
+    const row = scope === 'project' ? projectAnnouncements.find((row) => row.projectId === projectId) : announcements[scope];
+    const target = continuation?.type === 'announcement' && continuation.scope === scope
+      && (scope !== 'project' || continuation.projectId === projectId) ? continuation : undefined;
     if (!row) {
-      if (continuation?.type === 'announcement' && continuation.scope === scope) throw invalidCursor(RESYNC);
-      outputAnnouncements[scope] = null; return;
+      if (target) throw invalidCursor(RESYNC);
+      if (scope !== 'project') outputAnnouncements[scope] = null;
+      return;
     }
-    const target = continuation?.type === 'announcement' && continuation.scope === scope ? continuation : undefined;
     if (target && (target.id !== row.id || target.version !== row.version || target.offset > Buffer.byteLength(row.body))) throw invalidCursor(RESYNC);
     const offset = target?.offset ?? 0;
     const tail = Buffer.from(row.body).subarray(offset).toString('utf8');
@@ -155,14 +162,21 @@ export async function checkBoardInTx(tx: DbTx, ctx: TxContext, input: CheckBoard
     remaining -= Buffer.byteLength(body);
     const end = offset + Buffer.byteLength(body);
     const truncated = end < Buffer.byteLength(row.body);
-    outputAnnouncements[scope] = { ...row, updatedAt: row.updatedAt.toISOString(), body, bodyOffset: offset, bodyBytes: Buffer.byteLength(row.body), truncated,
-      continuation: truncated ? sign(binding, { seq: continuationSeq, type: 'announcement', scope, id: row.id, version: row.version, offset: end }) : null };
+    const result = { ...row, updatedAt: row.updatedAt.toISOString(), body, bodyOffset: offset, bodyBytes: Buffer.byteLength(row.body), truncated,
+      continuation: truncated ? sign(binding, { seq: continuationSeq, type: 'announcement', scope,
+        ...(scope === 'project' ? { projectId } : {}), id: row.id, version: row.version, offset: end }) : null };
+    if (scope === 'project') renderedProjects.set(projectId!, { ...result, projectId: projectId! });
+    else outputAnnouncements[scope] = result;
   }
-  if (continuation?.type === 'announcement') announcement(continuation.scope);
+  function remainingAnnouncements() {
+    for (const scope of ['site', 'org'] as const) if (!(scope in outputAnnouncements)) announcement(scope);
+    for (const row of projectAnnouncements) if (!renderedProjects.has(row.projectId)) announcement('project', row.projectId);
+  }
+  if (continuation?.type === 'announcement') announcement(continuation.scope, continuation.projectId);
   const priority = continuation?.type === 'group' ? continuation.group : data.view === 'addressed' ? 'addressed' : 'urgent';
   const orderedGroups = [priority, ...groupNames.filter((g) => g !== priority)];
   // Announcements lead normal checks; a targeted group continuation gets the entire budget first.
-  if (continuation?.type !== 'group') for (const scope of ['site', 'org'] as const) if (!(scope in outputAnnouncements)) announcement(scope);
+  if (continuation?.type !== 'group') remainingAnnouncements();
   for (const group of orderedGroups) {
     const sources = pages[group];
     // Merge only source heads. Re-sorting an entire source by public JS dates
@@ -212,7 +226,8 @@ export async function checkBoardInTx(tx: DbTx, ctx: TxContext, input: CheckBoard
     groups[group] = { none: count === 0, count, returned: ids.length, truncated, threadIds: ids,
       continuation: truncated ? sign(binding, { seq: continuationSeq, type: 'group', group, positions }) : null };
   }
-  for (const scope of ['site', 'org'] as const) if (!(scope in outputAnnouncements)) announcement(scope);
+  remainingAnnouncements();
+  outputAnnouncements.projects = projectAnnouncements.map((row) => renderedProjects.get(row.projectId)!);
   const rawEvents = after === undefined ? [] : (await readEventsAfter(tx, ctx.orgId, after, data.limit)).filter((event) => event.seq <= watermark);
   const examined = rawEvents.at(-1)?.seq ?? after ?? watermark;
   const resync = rawEvents.some((event) => event.kind === 'access.changed') ? RESYNC : null;

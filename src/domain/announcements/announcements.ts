@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, or } from 'drizzle-orm';
 import type { AppDatabase, DbTx } from '../../db/client';
 import { getDb } from '../../db/client';
 import { user } from '../../db/schema/auth';
@@ -6,6 +6,7 @@ import { announcementRevisions, announcements } from '../../db/schema/announceme
 import { siteAdmins } from '../../db/schema/site-admins';
 import { writeAudit } from '../kernel/audit';
 import { DomainError, versionConflict } from '../kernel/errors';
+import { assertProjectAccess, isUuid } from '../kernel';
 import { newId } from '../kernel/ids';
 import type { HumanPrincipal, Principal } from '../kernel/principal';
 import type { TxContext } from '../kernel/tx';
@@ -68,7 +69,7 @@ export type AnnouncementMutationResult = {
 };
 
 export type ListAnnouncementRevisionsInput = {
-  scope: AnnouncementScope;
+  scope: 'site' | 'org';
   /** Default 20. Maximum 100. */
   limit?: number;
 };
@@ -105,7 +106,9 @@ export async function getAnnouncementsInTx(tx: DbTx, ctx: TxContext): Promise<An
     clearedAt: announcements.clearedAt,
     updatedAt: announcements.updatedAt,
     authorDisplayName: user.name,
-  }).from(announcements).innerJoin(user, eq(user.id, announcements.authorUserId));
+  }).from(announcements).innerJoin(user, eq(user.id, announcements.authorUserId))
+    .where(or(and(eq(announcements.scope, 'site'), isNull(announcements.orgId)),
+      and(eq(announcements.scope, 'org'), eq(announcements.orgId, ctx.orgId))));
 
   let site: Announcement | null = null;
   let org: Announcement | null = null;
@@ -259,12 +262,13 @@ export async function clearSiteAnnouncement(
 type Mutation = {
   scope: AnnouncementScope;
   orgId: string | null;
+  projectId?: string;
   authorUserId: string;
   expectedVersion: number;
 } & ({ mode: 'set'; title: string; body: string } | { mode: 'clear' });
 
 async function applyMutation(tx: DbTx, mutation: Mutation): Promise<Applied> {
-  const current = await lockAnnouncement(tx, mutation.scope, mutation.orgId);
+  const current = await lockAnnouncement(tx, mutation.scope, mutation.orgId, mutation.projectId);
   if (!current) {
     if (mutation.mode === 'clear' || mutation.expectedVersion !== 0) throw versionConflict(0, null);
     return insertFirst(tx, mutation);
@@ -289,6 +293,7 @@ async function applyMutation(tx: DbTx, mutation: Mutation): Promise<Applied> {
     announcementId: current.id,
     scope: mutation.scope,
     orgId: mutation.orgId,
+    projectId: mutation.projectId,
     title,
     body,
     version: nextVersion,
@@ -315,6 +320,7 @@ async function insertFirst(tx: DbTx, mutation: Extract<Mutation, { mode: 'set' }
         id,
         scope: mutation.scope,
         orgId: mutation.orgId,
+        projectId: mutation.projectId,
         title: mutation.title,
         body: mutation.body,
         version: 1,
@@ -326,6 +332,7 @@ async function insertFirst(tx: DbTx, mutation: Extract<Mutation, { mode: 'set' }
         announcementId: id,
         scope: mutation.scope,
         orgId: mutation.orgId,
+        projectId: mutation.projectId,
         title: mutation.title,
         body: mutation.body,
         version: 1,
@@ -334,17 +341,19 @@ async function insertFirst(tx: DbTx, mutation: Extract<Mutation, { mode: 'set' }
       });
     });
   } catch (error) {
-    if (!isUniqueViolation(error)) throw mapLengthCheck(error);
-    const winner = await lockAnnouncement(tx, mutation.scope, mutation.orgId);
+    const expectedConstraint = `announcements_one_${mutation.scope}`;
+    if (!isUniqueViolation(error) || postgresConstraint(error) !== expectedConstraint) throw mapLengthCheck(error);
+    const winner = await lockAnnouncement(tx, mutation.scope, mutation.orgId, mutation.projectId);
     throw versionConflict(winner?.version ?? 0, winner ? announcementState(winner) : null);
   }
   return { id, version: 1, previous: null };
 }
 
-async function lockAnnouncement(tx: DbTx, scope: AnnouncementScope, orgId: string | null): Promise<StoredRow | null> {
+async function lockAnnouncement(tx: DbTx, scope: AnnouncementScope, orgId: string | null, projectId?: string): Promise<StoredRow | null> {
   const where = scope === 'site'
     ? eq(announcements.scope, 'site')
-    : and(eq(announcements.scope, 'org'), eq(announcements.orgId, requiredOrgId(orgId)));
+    : and(eq(announcements.scope, scope), eq(announcements.orgId, requiredOrgId(orgId)),
+      scope === 'project' ? eq(announcements.projectId, projectId!) : isNull(announcements.projectId));
   const rows = await tx.select({
     id: announcements.id,
     version: announcements.version,
@@ -359,6 +368,7 @@ async function insertRevision(tx: DbTx, row: {
   announcementId: string;
   scope: AnnouncementScope;
   orgId: string | null;
+  projectId?: string;
   title: string;
   body: string;
   version: number;
@@ -370,6 +380,7 @@ async function insertRevision(tx: DbTx, row: {
     announcementId: row.announcementId,
     scope: row.scope,
     orgId: row.orgId,
+    projectId: row.projectId,
     title: row.title,
     body: row.body,
     version: row.version,
@@ -383,10 +394,12 @@ async function readRevisions(
   scope: AnnouncementScope,
   orgId: string | null,
   limit: number,
+  projectId?: string,
 ): Promise<AnnouncementRevision[]> {
   const where = scope === 'site'
     ? eq(announcementRevisions.scope, 'site')
-    : and(eq(announcementRevisions.scope, 'org'), eq(announcementRevisions.orgId, requiredOrgId(orgId)));
+    : and(eq(announcementRevisions.scope, scope), eq(announcementRevisions.orgId, requiredOrgId(orgId)),
+      scope === 'project' ? eq(announcementRevisions.projectId, projectId!) : isNull(announcementRevisions.projectId));
   const rows = await tx.select({
     id: announcementRevisions.id,
     scope: announcementRevisions.scope,
@@ -404,7 +417,7 @@ async function readRevisions(
     .limit(limit);
 
   return rows.flatMap((row) => {
-    if (row.scope !== 'site' && row.scope !== 'org') return [];
+    if (row.scope !== 'site' && row.scope !== 'org' && row.scope !== 'project') return [];
     if (scope === 'org' && row.orgId !== orgId) return [];
     if (scope === 'site' && row.orgId !== null) return [];
     return [{
@@ -435,7 +448,7 @@ type JoinedAnnouncement = {
 
 function toAnnouncement(row: JoinedAnnouncement): Announcement | null {
   if (row.clearedAt) return null;
-  if (row.scope !== 'site' && row.scope !== 'org') return null;
+  if (row.scope !== 'site' && row.scope !== 'org' && row.scope !== 'project') return null;
   return {
     id: row.id,
     scope: row.scope,
@@ -517,4 +530,79 @@ function postgresConstraint(error: unknown): string | undefined {
     current = record.cause;
   }
   return undefined;
+}
+
+/** One selected project, with current grants checked in the kernel's transaction. */
+export async function getProjectAnnouncement(principal: Principal, projectId: string, database?: AppDatabase): Promise<Announcement | null> {
+  assertProjectId(projectId);
+  return withOrgTx(principal, async (tx, ctx) => {
+    await assertProjectAccess(tx, ctx.principal, projectId, 'read');
+    return (await getProjectAnnouncementsInTx(tx, ctx, [projectId]))[0] ?? null;
+  }, database ?? getDb());
+}
+
+/** Fixed query count. Selection and current grants constrain SQL before any body is read. */
+export async function getProjectAnnouncementsInTx(tx: DbTx, ctx: TxContext, projectIds: string[]): Promise<Array<Announcement & { projectId: string }>> {
+  const allowed = projectIds.filter((id) => ctx.projectIds === 'all' || ctx.projectIds.includes(id));
+  if (!allowed.length) return [];
+  const rows = await tx.select({
+    id: announcements.id, scope: announcements.scope, orgId: announcements.orgId,
+    projectId: announcements.projectId, title: announcements.title, body: announcements.body,
+    version: announcements.version, clearedAt: announcements.clearedAt, updatedAt: announcements.updatedAt,
+    authorDisplayName: user.name,
+  }).from(announcements).innerJoin(user, eq(user.id, announcements.authorUserId))
+    .where(and(eq(announcements.scope, 'project'), eq(announcements.orgId, ctx.orgId),
+      inArray(announcements.projectId, allowed), isNull(announcements.clearedAt)));
+  const byProject = new Map(rows.flatMap((row) => {
+    const view = toAnnouncement(row);
+    return view && row.projectId ? [[row.projectId, { ...view, projectId: row.projectId }] as const] : [];
+  }));
+  return allowed.flatMap((id) => byProject.has(id) ? [byProject.get(id)!] : []);
+}
+
+export async function listProjectAnnouncementRevisions(principal: Principal, input: { projectId: string; limit?: number }, database?: AppDatabase): Promise<AnnouncementRevision[]> {
+  const human = assertHuman(principal);
+  assertProjectId(input.projectId);
+  const limit = assertRevisionLimit(input.limit);
+  return withOrgTx(human, async (tx, ctx) => {
+    if (ctx.role !== 'owner') throw new DomainError('capability_denied');
+    await assertProjectAccess(tx, ctx.principal, input.projectId, 'read');
+    return readRevisions(tx, 'project', ctx.orgId, limit, input.projectId);
+  }, database ?? getDb());
+}
+
+export async function setProjectAnnouncement(principal: Principal, input: AnnouncementContentInput & { projectId: string }, database?: AppDatabase): Promise<AnnouncementMutationResult> {
+  const human = assertHuman(principal);
+  const content = assertAnnouncementContent(input.title, input.body);
+  const expectedVersion = assertExpectedVersion(input.expectedVersion);
+  assertProjectId(input.projectId);
+  return mutateProject(human, { ...content, expectedVersion, projectId: input.projectId, mode: 'set' }, database);
+}
+
+export async function clearProjectAnnouncement(principal: Principal, input: AnnouncementVersionInput & { projectId: string }, database?: AppDatabase): Promise<AnnouncementMutationResult> {
+  const human = assertHuman(principal);
+  const expectedVersion = assertExpectedVersion(input.expectedVersion);
+  assertProjectId(input.projectId);
+  return mutateProject(human, { expectedVersion, projectId: input.projectId, mode: 'clear' }, database);
+}
+
+async function mutateProject(human: HumanPrincipal, input: { projectId: string; expectedVersion: number } & ({ mode: 'set'; title: string; body: string } | { mode: 'clear' }), database?: AppDatabase): Promise<AnnouncementMutationResult> {
+  return withOrgTx(human, async (tx, ctx) => {
+    if (ctx.role !== 'owner') throw new DomainError('capability_denied');
+    // Read mode deliberately allows archived projects. No project row lock: concurrent first
+    // publishes must race on the announcement index, like the site/org implementation.
+    await assertProjectAccess(tx, ctx.principal, input.projectId, 'read');
+    const applied = await applyMutation(tx, { ...input, scope: 'project', orgId: ctx.orgId, authorUserId: human.userId });
+    const cleared = input.mode === 'clear';
+    await writeAudit(tx, ctx, {
+      action: cleared ? 'announcement.clear' : 'announcement.set', entityType: 'announcement', entityId: applied.id,
+      before: applied.previous ? { ...applied.previous, projectId: input.projectId } : null,
+      after: { version: applied.version, cleared, projectId: input.projectId },
+    });
+    return resultOf(applied, 'project', cleared);
+  }, database ?? getDb());
+}
+
+function assertProjectId(id: string): void {
+  if (!isUuid(id)) throw new DomainError('forbidden_or_not_found');
 }
