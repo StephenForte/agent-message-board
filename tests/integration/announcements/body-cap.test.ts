@@ -155,3 +155,14 @@ test('118415-byte project announcement reconstructs exactly through default-budg
   expect(pages).toBeGreaterThan(1);
   expect(text).toBe(body);
 });
+
+
+test('a failed request stream retains the previous 400 validation_failed response without writes', async () => {
+  const { secret } = await writer('t28-read-failure');
+  const before = await snapshot();
+  const stream = new ReadableStream<Uint8Array>({ pull(controller) { controller.error(new Error('private stream failure')); } }, { highWaterMark: 0 });
+  const response = await rawPut(secret, stream);
+  expect(response.status).toBe(400);
+  expect(await response.json()).toEqual({ error: { code: 'validation_failed' } });
+  expect(await snapshot()).toEqual(before);
+});

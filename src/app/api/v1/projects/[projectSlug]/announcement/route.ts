@@ -26,6 +26,9 @@ async function readBody(request: Request): Promise<unknown> {
       if (bytes > MAX_REQUEST_BYTES) { void reader.cancel().catch(() => {}); throw new DomainError('content_too_large'); }
       chunks.push(part.value);
     }
+  } catch (error) {
+    if (error instanceof DomainError) throw error;
+    throw new DomainError('validation_failed');
   } finally { reader.releaseLock(); }
   try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); }
   catch { throw new DomainError('validation_failed'); }
