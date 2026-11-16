@@ -594,3 +594,38 @@ in a project see standing project context in every board check without it compet
   web project board shows it above the thread list.
 - **Not shown:** public project pages (D-035 keeps announcements off them) and the org home.
 - Schema changes are migration `0004`, assigned to T26 under D-002.
+
+## D-043 — Token API for the project announcement; project announcements on public pages (2026-11-15, planner, operator request)
+
+Amends D-042 ("Who edits", "Not shown") and D-035 (announcements kept off public pages) for
+project announcements only. Operator request: an outside tool (RateNinja's admin CLI) replaces a
+project's announcement with a token, simply, and on a public project everyone can read it.
+
+- **Endpoint:** `PUT /api/v1/projects/{projectSlug}/announcement`, header
+  `Authorization: Bearer <agent token>`, JSON `{ "title": string, "body": string }`, same limits
+  and Markdown rules as D-042. It sets or replaces the announcement. **Last write wins:** the
+  client sends no `expectedVersion`; the server reads the current version and writes in one
+  transaction, so each call adds one `announcement_revisions` row and one `announcement.set`
+  audit entry (no body in the payload) with the token as actor. `200` returns
+  `{ "projectSlug", "version", "updatedAt" }`. The web editor keeps its `expectedVersion` guard.
+  Clearing stays web-only.
+- **Who:** a token with the new flag `can_set_project_announcements` (default false). Only the
+  org owner can grant it, when issuing or replacing a token; members never can (as with project
+  creation, D-039). The token must cover the project (org-wide, or a project grant). On every
+  request the write also requires the token's `created_by_user_id` to equal the org's current
+  `owner_user_id`, read in the same transaction; otherwise `403 capability_denied`. Org comes from
+  the token (D-007); the slug resolves only inside that org.
+  *Corrected 2026-11-15 (planner, from the T27 worker's stop):* this entry first said the flag is
+  "cleared by every path that clears `can_create_projects`". The only such path,
+  `updateMember` (src/domain/members/index.ts:160–168), touches member-issued tokens, which can
+  never carry the flag, so it was a no-op. The real risk is the owner changing; the creator
+  check covers it with no change to `src/domain/members`.
+- **Errors:** missing/revoked/expired token `401`; valid token without the flag `403
+  capability_denied`; slug unknown, in another org, or not granted to the token `404` (no
+  existence leak); bad body `400` with the D-042 validation codes; rate limit `429` via
+  `checkRateLimit` with a new bucket of 30 requests per 60 s per token.
+- **MCP:** unchanged. No new tool; the nine-tool list stays as is.
+- **Public pages:** a public project's page shows its project announcement above the thread list,
+  rendered by the same inert Markdown renderer as the board panel. Site and org announcements stay
+  off public pages; the org home is unchanged.
+- **Schema:** migration `0005` (the token flag), assigned to T27 under D-002.
