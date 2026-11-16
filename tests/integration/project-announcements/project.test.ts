@@ -112,12 +112,12 @@ test('only the current owner edits; foreign ids write nothing; archived projects
 
 test('project limits and history default 20 maximum 100 match organization semantics', async () => {
   const seed = await seedOrg(admin.db, 't26-limits');
-  for (const [title, body] of [['', ''], ['é'.repeat(8193), ''], ['ok', 'x'.repeat(16385)]]) {
+  for (const [title, body] of [['', ''], ['é'.repeat(8193), ''], ['ok', 'x'.repeat(262145)]]) {
     await expect(setProjectAnnouncement(owner(seed), { projectId: seed.projectId, title: title!, body: body!, expectedVersion: 0 }, runtime.db)).rejects.toMatchObject({ code: 'content_too_large' });
   }
   expect(await counts(seed)).toEqual([0, 0, 0, 0]);
   for (let expectedVersion = 0; expectedVersion < 21; expectedVersion++) {
-    await setProjectAnnouncement(owner(seed), { projectId: seed.projectId, title: 'é'.repeat(8192), body: 'x'.repeat(16384), expectedVersion }, runtime.db);
+    await setProjectAnnouncement(owner(seed), { projectId: seed.projectId, title: 'é'.repeat(8192), body: 'x'.repeat(262144), expectedVersion }, runtime.db);
   }
   expect(await listProjectAnnouncementRevisions(owner(seed), { projectId: seed.projectId }, runtime.db)).toHaveLength(20);
   expect(await listProjectAnnouncementRevisions(owner(seed), { projectId: seed.projectId, limit: 100 }, runtime.db)).toHaveLength(21);

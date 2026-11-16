@@ -1,7 +1,8 @@
 import { DomainError } from '../kernel/errors';
 
-/** PRD §8: title and body each at most 16 KiB, measured as UTF-8 bytes. */
-export const MAX_ANNOUNCEMENT_BYTES = 16_384;
+/** D-044: independent title and body caps, measured as UTF-8 bytes. */
+export const MAX_ANNOUNCEMENT_TITLE_BYTES = 16_384;
+export const MAX_ANNOUNCEMENT_BODY_BYTES = 262_144;
 
 /** PRD §10 default list size. */
 export const DEFAULT_REVISION_LIMIT = 20;
@@ -12,7 +13,7 @@ export const MAX_REVISION_LIMIT = 100;
 export type AnnouncementScope = 'site' | 'org' | 'project';
 
 /**
- * Title is 1–16384 bytes and body is 0–16384 bytes. Both out-of-range cases
+ * Title is 1–16384 bytes and body is 0–262144 bytes. Both out-of-range cases
  * are `content_too_large`, so callers never see the table CHECK error.
  * A non-string is `validation_failed`.
  */
@@ -21,7 +22,7 @@ export function assertAnnouncementContent(title: unknown, body: unknown): { titl
   if (typeof body !== 'string') throw new DomainError('validation_failed', { field: 'body' });
   const titleBytes = Buffer.byteLength(title);
   const bodyBytes = Buffer.byteLength(body);
-  if (titleBytes < 1 || titleBytes > MAX_ANNOUNCEMENT_BYTES || bodyBytes > MAX_ANNOUNCEMENT_BYTES) {
+  if (titleBytes < 1 || titleBytes > MAX_ANNOUNCEMENT_TITLE_BYTES || bodyBytes > MAX_ANNOUNCEMENT_BODY_BYTES) {
     throw new DomainError('content_too_large');
   }
   return { title, body };

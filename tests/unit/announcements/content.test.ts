@@ -4,7 +4,6 @@ import {
   assertAnnouncementScope,
   assertExpectedVersion,
   assertRevisionLimit,
-  MAX_ANNOUNCEMENT_BYTES,
 } from '../../../src/domain/announcements/content';
 import { DomainError } from '../../../src/domain/kernel/errors';
 import type { AgentPrincipal, HumanPrincipal, SystemPrincipal } from '../../../src/domain/kernel/principal';
@@ -33,23 +32,23 @@ const system: SystemPrincipal = {
 
 test('title and body limits are UTF-8 bytes', () => {
   expect(assertAnnouncementContent('a', '')).toEqual({ title: 'a', body: '' });
-  expect(assertAnnouncementContent('a'.repeat(MAX_ANNOUNCEMENT_BYTES), 'b'.repeat(MAX_ANNOUNCEMENT_BYTES))).toEqual({
-    title: 'a'.repeat(MAX_ANNOUNCEMENT_BYTES),
-    body: 'b'.repeat(MAX_ANNOUNCEMENT_BYTES),
+  expect(assertAnnouncementContent('a'.repeat(16_384), 'b'.repeat(262_144))).toEqual({
+    title: 'a'.repeat(16_384),
+    body: 'b'.repeat(262_144),
   });
-  expect(assertAnnouncementContent('é'.repeat(MAX_ANNOUNCEMENT_BYTES / 2), 'ok')).toEqual({
-    title: 'é'.repeat(MAX_ANNOUNCEMENT_BYTES / 2),
+  expect(assertAnnouncementContent('é'.repeat(16_384 / 2), 'ok')).toEqual({
+    title: 'é'.repeat(16_384 / 2),
     body: 'ok',
   });
   expect(() => assertAnnouncementContent('', 'body')).toThrow(DomainError);
   expect(() => assertAnnouncementContent('', 'body')).toThrowError(expect.objectContaining({ code: 'content_too_large' }));
-  expect(() => assertAnnouncementContent('a'.repeat(MAX_ANNOUNCEMENT_BYTES + 1), 'body')).toThrowError(
+  expect(() => assertAnnouncementContent('a'.repeat(16_384 + 1), 'body')).toThrowError(
     expect.objectContaining({ code: 'content_too_large' }),
   );
-  expect(() => assertAnnouncementContent('title', 'b'.repeat(MAX_ANNOUNCEMENT_BYTES + 1))).toThrowError(
+  expect(() => assertAnnouncementContent('title', 'b'.repeat(262_144 + 1))).toThrowError(
     expect.objectContaining({ code: 'content_too_large' }),
   );
-  expect(() => assertAnnouncementContent(`${'é'.repeat(MAX_ANNOUNCEMENT_BYTES / 2)}é`, 'body')).toThrowError(
+  expect(() => assertAnnouncementContent(`${'é'.repeat(16_384 / 2)}é`, 'body')).toThrowError(
     expect.objectContaining({ code: 'content_too_large' }),
   );
   expect(() => assertAnnouncementContent(1, 'body')).toThrowError(
@@ -96,7 +95,7 @@ test('non-human principals cannot set, clear, or list announcement history', asy
   await expect(setOrgAnnouncement(human, { title: '', body: 'x', expectedVersion: 0 })).rejects.toMatchObject({
     code: 'content_too_large',
   });
-  await expect(setSiteAnnouncement(human, { title: 'ok', body: 'x'.repeat(MAX_ANNOUNCEMENT_BYTES + 1), expectedVersion: 0 })).rejects.toMatchObject({
+  await expect(setSiteAnnouncement(human, { title: 'ok', body: 'x'.repeat(262_144 + 1), expectedVersion: 0 })).rejects.toMatchObject({
     code: 'content_too_large',
   });
   await expect(listAnnouncementRevisions(human, { scope: 'org', limit: 101 })).rejects.toMatchObject({

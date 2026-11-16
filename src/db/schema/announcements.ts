@@ -31,7 +31,7 @@ export const announcements = pgTable('announcements', {
   ...announcementPolicy('announcements_tenant'),
   check('announcements_scope', scopeCheck(table.scope, table.orgId, table.projectId)),
   check('announcements_title_len', sql`octet_length(${table.title}) between 1 and 16384`),
-  check('announcements_body_len', sql`octet_length(${table.body}) <= 16384`),
+  check('announcements_body_len', sql`octet_length(${table.body}) <= 262144`),
   check('announcements_version', sql`${table.version} >= 1`),
 ]).enableRLS();
 
@@ -53,6 +53,6 @@ export const announcementRevisions = pgTable('announcement_revisions', {
   ...announcementPolicy('announcement_revisions_tenant'),
   check('announcement_revisions_scope', scopeCheck(table.scope, table.orgId, table.projectId)),
   check('announcement_revisions_title_len', sql`octet_length(${table.title}) between 1 and 16384`),
-  check('announcement_revisions_body_len', sql`octet_length(${table.body}) <= 16384`),
+  check('announcement_revisions_body_len', sql`octet_length(${table.body}) <= 262144`),
   check('announcement_revisions_version_min', sql`${table.version} >= 1`),
 ]).enableRLS();
