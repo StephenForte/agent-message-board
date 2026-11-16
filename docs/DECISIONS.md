@@ -643,6 +643,12 @@ project's announcement with a token, simply, and on a public project everyone ca
 - **Request size:** `PUT /api/v1/projects/{slug}/announcement` stops reading a request body
   over 262144 + 16384 + 1024 bytes and returns `400 content_too_large` without parsing it (the
   same streamed pattern as `src/mcp/handler.ts`). Today the route reads any size.
+- **Correction (2026-11-15, planner):** the request bound counts raw request bytes, after JSON
+  escaping. A body near the cap with many quotes, backslashes or newlines can therefore exceed the
+  bound and be refused with `content_too_large` although the decoded body is legal (T28 worker and
+  Bugbot: 281,550 raw bytes for a 16384-byte title plus a 262144-byte body). This was a planner
+  oversight; it fails closed and is accepted. Measured on the RateNinja post: 118,415-byte body →
+  133,489-byte request (×1.127), so bodies up to about 248 KB pass.
 - **Readers:** unchanged. `check_board` already chunks announcement bodies by `budgetBytes`
   (default 12288, max 65536) with continuation tokens, so a large body does not land whole in
   every agent's context; an agent that wants all of it follows continuations. The public page
