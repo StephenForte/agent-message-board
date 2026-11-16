@@ -11,7 +11,6 @@ import {
   setOrgAnnouncement,
   setSiteAnnouncement,
 } from '../../../src/domain/announcements';
-import { MAX_ANNOUNCEMENT_BYTES } from '../../../src/domain/announcements/content';
 import { DomainError } from '../../../src/domain/kernel/errors';
 import type { AgentPrincipal, HumanPrincipal } from '../../../src/domain/kernel/principal';
 import { withOrgTx } from '../../../src/domain/kernel/tx';
@@ -253,14 +252,14 @@ test('oversize title or body is content_too_large and writes nothing', async () 
     title: '', body: 'empty title', expectedVersion: 0,
   }, runtime.db)).rejects.toMatchObject({ code: 'content_too_large' });
   await expect(setOrgAnnouncement({ ...actor, requestId: 'big-title' }, {
-    title: 'é'.repeat((MAX_ANNOUNCEMENT_BYTES / 2) + 1), body: 'body', expectedVersion: 0,
+    title: 'é'.repeat((16_384 / 2) + 1), body: 'body', expectedVersion: 0,
   }, runtime.db)).rejects.toMatchObject({ code: 'content_too_large' });
   await expect(setSiteAnnouncement(human(siteAdmin.userId, null, 'big-site', true), {
-    title: 'ok', body: 'b'.repeat(MAX_ANNOUNCEMENT_BYTES + 1), expectedVersion: 0,
+    title: 'ok', body: 'b'.repeat(262_144 + 1), expectedVersion: 0,
   }, runtime.db)).rejects.toMatchObject({ code: 'content_too_large' });
   const exact = await setOrgAnnouncement({ ...actor, requestId: 'exact' }, {
-    title: 'é'.repeat(MAX_ANNOUNCEMENT_BYTES / 2),
-    body: 'b'.repeat(MAX_ANNOUNCEMENT_BYTES),
+    title: 'é'.repeat(16_384 / 2),
+    body: 'b'.repeat(262_144),
     expectedVersion: 0,
   }, runtime.db);
   expect(exact.version).toBe(1);

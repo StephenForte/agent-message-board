@@ -37,7 +37,7 @@ function conflictFailure(currentVersion: unknown, state: unknown): DomainFailure
 
 function messageFor(code: DomainErrorCode, field: string | undefined): string {
   if (code === 'validation_failed') return fieldMessage(field);
-  if (code === 'content_too_large') return 'Title and body must each be 16 KiB or smaller.';
+  if (code === 'content_too_large') return 'Announcement title must be 16 KiB or smaller; body must be 256 KiB or smaller.';
   if (code === 'unavailable') return 'The board is temporarily unavailable. Nothing was saved. Try again.';
   if (code === 'idempotency_conflict') return 'This form was already submitted with different values. Reload the page and try again.';
   if (code === 'capability_denied') return 'You cannot do that.';

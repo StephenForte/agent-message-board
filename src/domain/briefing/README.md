@@ -100,7 +100,8 @@ Announcements retain versions, total `bodyBytes`, `bodyOffset`, `truncated` and
 continuation. Follow each token with the same selection/view and concatenate
 verbatim bodies by byte offset to obtain the full announcement. A changed/cleared
 announcement invalidates its outstanding token and requires a fresh check. A caller
-may instead raise the budget up to 65536 to retrieve a full 16384-byte body at once.
+may raise the budget up to 65536 to retrieve larger chunks of a body up to 262144 bytes;
+follow continuations to retrieve the rest.
 With a budget smaller than the next Unicode code point (at most four bytes), a
 chunk can be empty; increase the budget to at least four bytes to make progress.
 

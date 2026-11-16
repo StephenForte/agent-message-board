@@ -43,6 +43,13 @@
       "when": 1794774147573,
       "tag": "0005_announcement_token_api",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794790119110,
+      "tag": "0006_announcement_body_cap",
+      "breakpoints": true
     }
   ]
 }

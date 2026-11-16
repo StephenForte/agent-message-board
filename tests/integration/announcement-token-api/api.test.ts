@@ -138,7 +138,7 @@ test('missing, malformed, revoked and expired bearer credentials return 401', as
 test('invalid JSON shape and D-042 byte validation return 400 without revisions', async () => {
   const seed = await seedOrg(fixture.admin.db, 'api-validation');
   const token = await issued(seed);
-  for (const [input, code] of [[null, 'validation_failed'], [[], 'validation_failed'], [{ title: 'x' }, 'validation_failed'], [{ title: '', body: '' }, 'content_too_large'], [{ title: 'x', body: 'é'.repeat(8193) }, 'content_too_large']] as const) {
+  for (const [input, code] of [[null, 'validation_failed'], [[], 'validation_failed'], [{ title: 'x' }, 'validation_failed'], [{ title: '', body: '' }, 'content_too_large'], [{ title: 'x', body: 'é'.repeat(131072) + 'a' }, 'content_too_large']] as const) {
     const response = await put(token.secret, 'alpha', input);
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: { code } });

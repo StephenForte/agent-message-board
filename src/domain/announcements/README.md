@@ -43,7 +43,7 @@ Site writes do not trust `principal.siteAdmin`. The user's `site_admins` row is 
 
 ## Limits and audit
 
-Title and body are measured with UTF-8 byte length. Title must be 1–16384 bytes. Body may be empty and must be ≤ 16384 bytes. Violations are `content_too_large`.
+Title and body are measured with UTF-8 byte length. Title must be 1–16384 bytes. Body may be empty and must be ≤ 262144 bytes (256 KiB), for site, org and project scopes (D-044). Violations are `content_too_large`.
 
 Org set and org clear each write one `announcement.set` or `announcement.clear` audit row whose `before` / `after` are `{ version, cleared }` only. The body is not copied into the audit payload. Site changes write no audit row; `announcement_revisions` is their history (D-023). Rows are never deleted.
 
