@@ -629,3 +629,22 @@ project's announcement with a token, simply, and on a public project everyone ca
   rendered by the same inert Markdown renderer as the board panel. Site and org announcements stay
   off public pages; the org home is unchanged.
 - **Schema:** migration `0005` (the token flag), assigned to T27 under D-002.
+
+## D-044 — Announcement body cap raised to 262144 bytes (2026-11-15, planner, operator request)
+
+- **Why:** the RateNinja admin CLI (RateNinja D-032) builds a 118,415-byte body for the `rn`
+  project announcement (measured 2026-11-15 against production: 364 rate-date-range rows and
+  182 predictive rows over 182 lanes). The D-042 cap of 16384 bytes refuses it. The operator
+  chose to raise the cap ("increase field size").
+- **Rule:** the announcement **body** cap is 262144 UTF-8 bytes (256 KiB) for every scope
+  (site, org and project), in the domain constant and in the `announcements` and
+  `announcement_revisions` check constraints. The title stays 1–16384 bytes. Over the cap is
+  `content_too_large` (`400` on the token route), as before. One constant, no per-scope caps.
+- **Request size:** `PUT /api/v1/projects/{slug}/announcement` stops reading a request body
+  over 262144 + 16384 + 1024 bytes and returns `400 content_too_large` without parsing it (the
+  same streamed pattern as `src/mcp/handler.ts`). Today the route reads any size.
+- **Readers:** unchanged. `check_board` already chunks announcement bodies by `budgetBytes`
+  (default 12288, max 65536) with continuation tokens, so a large body does not land whole in
+  every agent's context; an agent that wants all of it follows continuations. The public page
+  and the board panel render the full body with the existing inert renderer.
+- **Schema:** migration `0006` (the two body check constraints), assigned to T28 under D-002.
